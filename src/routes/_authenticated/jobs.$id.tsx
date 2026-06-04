@@ -1,0 +1,210 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/lib/hooks/useAuth";
+import { useRoles } from "@/lib/hooks/useRoles";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
+import { formatNaira } from "@/lib/format";
+import { StatusPill } from "./dashboard";
+import { Wallet, CheckCircle2, ShieldCheck, Loader2 } from "lucide-react";
+
+export const Route = createFileRoute("/_authenticated/jobs/$id")({
+  component: JobDetail,
+});
+
+function JobDetail() {
+  const { id } = Route.useParams();
+  const { user } = useAuth();
+  const { data: roles } = useRoles(user?.id);
+  const qc = useQueryClient();
+
+  const { data: job, isLoading } = useQuery({
+    queryKey: ["job", id],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("jobs").select("*").eq("id", id).maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: bids } = useQuery({
+    queryKey: ["bids", id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("bids")
+        .select("*, profiles:provider_id(full_name)")
+        .eq("job_id", id)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: posterProfile } = useQuery({
+    queryKey: ["profile", job?.poster_id],
+    enabled: !!job,
+    queryFn: async () => {
+      const { data } = await supabase.from("profiles").select("full_name").eq("id", job!.poster_id).maybeSingle();
+      return data;
+    },
+  });
+
+  const [amount, setAmount] = useState("");
+  const [message, setMessage] = useState("");
+  const [bidLoading, setBidLoading] = useState(false);
+
+  if (isLoading) return <p className="text-sm text-muted-foreground">Loading…</p>;
+  if (!job) return <p className="text-sm text-muted-foreground">Job not found.</p>;
+
+  const isPoster = user?.id === job.poster_id;
+  const isProvider = roles?.includes("provider");
+  const isAssigned = user?.id === job.assigned_provider_id;
+  const myBid = bids?.find((b) => b.provider_id === user?.id);
+  const refresh = () => {
+    qc.invalidateQueries({ queryKey: ["job", id] });
+    qc.invalidateQueries({ queryKey: ["bids", id] });
+  };
+
+  const submitBid = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    setBidLoading(true);
+    const { error } = await supabase.from("bids").insert({
+      job_id: id,
+      provider_id: user.id,
+      amount_naira: Math.max(0, parseInt(amount || "0", 10)),
+      message,
+    });
+    setBidLoading(false);
+    if (error) return toast.error(error.message);
+    toast.success("Bid placed");
+    setAmount(""); setMessage("");
+    refresh();
+  };
+
+  const acceptBid = async (bid: any) => {
+    // 1. Reject other bids, accept this one
+    const { error: bErr } = await supabase.from("bids").update({ status: "rejected" }).eq("job_id", id).neq("id", bid.id);
+    if (bErr) return toast.error(bErr.message);
+    await supabase.from("bids").update({ status: "accepted" }).eq("id", bid.id);
+    // 2. Update job
+    const { error: jErr } = await supabase.from("jobs").update({
+      status: "in_escrow",
+      assigned_provider_id: bid.provider_id,
+      final_price_naira: bid.amount_naira,
+    }).eq("id", id);
+    if (jErr) return toast.error(jErr.message);
+    // 3. Create escrow (simulated funding)
+    const { error: eErr } = await supabase.from("escrow_transactions").insert({
+      job_id: id,
+      amount_naira: bid.amount_naira,
+      status: "funded",
+    });
+    if (eErr) return toast.error(eErr.message);
+    toast.success("Bid accepted — funds held in escrow");
+    refresh();
+  };
+
+  const markDelivered = async () => {
+    const { error } = await supabase.from("jobs").update({ status: "delivered" }).eq("id", id);
+    if (error) return toast.error(error.message);
+    toast.success("Marked delivered — waiting for admin to release escrow");
+    refresh();
+  };
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <div className="flex items-start justify-between gap-2">
+            <CardTitle>{job.title}</CardTitle>
+            <StatusPill status={job.status} />
+          </div>
+          <p className="text-xs text-muted-foreground">Posted by {posterProfile?.full_name || "—"}</p>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="whitespace-pre-wrap text-sm">{job.description}</p>
+          <div className="flex items-center gap-2 text-sm font-medium">
+            <Wallet className="h-4 w-4" />
+            Budget: {formatNaira(job.budget_naira)}
+            {job.final_price_naira ? <span className="text-muted-foreground">· Agreed: {formatNaira(job.final_price_naira)}</span> : null}
+          </div>
+          {job.status === "in_escrow" && (
+            <div className="rounded-md bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-400">
+              <ShieldCheck className="mr-1 inline h-4 w-4" />
+              {formatNaira(job.final_price_naira)} held in escrow.
+            </div>
+          )}
+          {job.status === "completed" && (
+            <div className="rounded-md bg-emerald-500/10 p-3 text-sm text-emerald-700 dark:text-emerald-400">
+              <CheckCircle2 className="mr-1 inline h-4 w-4" /> Escrow released to provider.
+            </div>
+          )}
+
+          {/* Poster marks delivery received? Actually provider marks delivered. */}
+          {isAssigned && job.status === "in_escrow" && (
+            <Button onClick={markDelivered}>Mark as delivered</Button>
+          )}
+          {isPoster && job.status === "delivered" && (
+            <p className="text-xs text-muted-foreground">
+              Provider marked delivered. An admin will review and release escrow.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Bid form for providers */}
+      {job.status === "open" && isProvider && !isPoster && !myBid && (
+        <Card>
+          <CardHeader><CardTitle>Place a bid</CardTitle></CardHeader>
+          <CardContent>
+            <form onSubmit={submitBid} className="space-y-3">
+              <div className="space-y-2">
+                <Label htmlFor="a">Your price (₦)</Label>
+                <Input id="a" type="number" min={0} required value={amount} onChange={(e) => setAmount(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="m">Message (optional)</Label>
+                <Textarea id="m" rows={3} value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Why should they pick you?" />
+              </div>
+              <Button type="submit" disabled={bidLoading} className="w-full">
+                {bidLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Submit bid
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Bids list */}
+      <div>
+        <h2 className="mb-2 text-sm font-semibold text-muted-foreground">Bids ({bids?.length ?? 0})</h2>
+        <div className="space-y-2">
+          {bids?.map((b: any) => (
+            <Card key={b.id} className={b.status === "accepted" ? "border-emerald-500/40" : ""}>
+              <CardContent className="flex items-center justify-between pt-6">
+                <div>
+                  <p className="font-medium">{b.profiles?.full_name || "Provider"}</p>
+                  <p className="text-sm text-muted-foreground">{b.message || "—"}</p>
+                  <p className="mt-1 text-sm font-semibold">{formatNaira(b.amount_naira)}</p>
+                </div>
+                <div className="flex flex-col items-end gap-2">
+                  <span className="text-xs text-muted-foreground">{b.status}</span>
+                  {isPoster && job.status === "open" && b.status === "pending" && (
+                    <Button size="sm" onClick={() => acceptBid(b)}>Accept</Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+          {!bids?.length && <p className="text-sm text-muted-foreground">No bids yet.</p>}
+        </div>
+      </div>
+    </div>
+  );
+}
