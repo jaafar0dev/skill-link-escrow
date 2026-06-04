@@ -1,29 +1,52 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { InstallPrompt } from "@/components/InstallPrompt";
+import { supabase } from "@/integrations/supabase/client";
+
+const SEEN_KEY = "skillswap_install_seen";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Your App" },
-      { name: "description", content: "Replace this with a one-sentence description of your app." },
-      { property: "og:title", content: "Your App" },
-      { property: "og:description", content: "Replace this with a one-sentence description of your app." },
+      { title: "SkillSwap — Escrow-protected student services" },
+      { name: "description", content: "Post a project, get bids, and pay safely with built-in escrow." },
     ],
   }),
   component: Index,
 });
 
-// IMPORTANT: Replace this placeholder. See ./README.md for routing conventions.
 function Index() {
-  return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
+  const navigate = useNavigate();
+  const [ready, setReady] = useState(false);
+  const [showInstall, setShowInstall] = useState(false);
+
+  useEffect(() => {
+    const seen = localStorage.getItem(SEEN_KEY);
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        navigate({ to: "/dashboard" });
+        return;
+      }
+      if (!seen) {
+        setShowInstall(true);
+      } else {
+        navigate({ to: "/auth" });
+      }
+      setReady(true);
+    });
+  }, [navigate]);
+
+  if (!ready) return <div className="flex min-h-screen items-center justify-center bg-background" />;
+
+  if (showInstall) {
+    return (
+      <InstallPrompt
+        onDone={() => {
+          localStorage.setItem(SEEN_KEY, "1");
+          navigate({ to: "/auth" });
+        }}
       />
-    </div>
-  );
+    );
+  }
+  return null;
 }
