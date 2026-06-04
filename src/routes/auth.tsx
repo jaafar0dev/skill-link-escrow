@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,15 +9,32 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
 import { Loader2, ShieldCheck } from "lucide-react";
+import { OnboardingCarousel } from "@/components/OnboardingCarousel";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({ meta: [{ title: "Sign in — SkillSwap" }] }),
   component: AuthPage,
 });
 
+const ONBOARD_KEY = "skillswap_onboarded";
+
 function AuthPage() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && !localStorage.getItem(ONBOARD_KEY)) {
+      setShowOnboarding(true);
+    }
+  }, []);
+
+  const finishOnboarding = () => {
+    localStorage.setItem(ONBOARD_KEY, "1");
+    setShowOnboarding(false);
+  };
+
+  if (showOnboarding) return <OnboardingCarousel onDone={finishOnboarding} />;
 
   // Signup
   const [name, setName] = useState("");
