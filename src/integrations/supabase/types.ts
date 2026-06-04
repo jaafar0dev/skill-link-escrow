@@ -14,16 +14,172 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      bids: {
+        Row: {
+          amount_naira: number
+          created_at: string
+          id: string
+          job_id: string
+          message: string
+          provider_id: string
+          status: Database["public"]["Enums"]["bid_status"]
+        }
+        Insert: {
+          amount_naira: number
+          created_at?: string
+          id?: string
+          job_id: string
+          message?: string
+          provider_id: string
+          status?: Database["public"]["Enums"]["bid_status"]
+        }
+        Update: {
+          amount_naira?: number
+          created_at?: string
+          id?: string
+          job_id?: string
+          message?: string
+          provider_id?: string
+          status?: Database["public"]["Enums"]["bid_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bids_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      escrow_transactions: {
+        Row: {
+          amount_naira: number
+          created_at: string
+          id: string
+          job_id: string
+          released_at: string | null
+          released_by: string | null
+          status: Database["public"]["Enums"]["escrow_status"]
+        }
+        Insert: {
+          amount_naira: number
+          created_at?: string
+          id?: string
+          job_id: string
+          released_at?: string | null
+          released_by?: string | null
+          status?: Database["public"]["Enums"]["escrow_status"]
+        }
+        Update: {
+          amount_naira?: number
+          created_at?: string
+          id?: string
+          job_id?: string
+          released_at?: string | null
+          released_by?: string | null
+          status?: Database["public"]["Enums"]["escrow_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "escrow_transactions_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: true
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      jobs: {
+        Row: {
+          assigned_provider_id: string | null
+          budget_naira: number
+          created_at: string
+          description: string
+          final_price_naira: number | null
+          id: string
+          poster_id: string
+          status: Database["public"]["Enums"]["job_status"]
+          title: string
+        }
+        Insert: {
+          assigned_provider_id?: string | null
+          budget_naira: number
+          created_at?: string
+          description: string
+          final_price_naira?: number | null
+          id?: string
+          poster_id: string
+          status?: Database["public"]["Enums"]["job_status"]
+          title: string
+        }
+        Update: {
+          assigned_provider_id?: string | null
+          budget_naira?: number
+          created_at?: string
+          description?: string
+          final_price_naira?: number | null
+          id?: string
+          poster_id?: string
+          status?: Database["public"]["Enums"]["job_status"]
+          title?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          full_name: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          full_name?: string
+          id: string
+        }
+        Update: {
+          created_at?: string
+          full_name?: string
+          id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "poster" | "provider" | "admin"
+      bid_status: "pending" | "accepted" | "rejected"
+      escrow_status: "funded" | "released" | "refunded"
+      job_status: "open" | "in_escrow" | "delivered" | "completed" | "cancelled"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +306,11 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["poster", "provider", "admin"],
+      bid_status: ["pending", "accepted", "rejected"],
+      escrow_status: ["funded", "released", "refunded"],
+      job_status: ["open", "in_escrow", "delivered", "completed", "cancelled"],
+    },
   },
 } as const
