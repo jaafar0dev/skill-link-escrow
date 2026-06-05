@@ -10,6 +10,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
 import { Loader2, ShieldCheck } from "lucide-react";
 import { OnboardingCarousel } from "@/components/OnboardingCarousel";
+import authBg from "@/assets/auth-bg.jpg";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({ meta: [{ title: "Sign in — SkillSwap" }] }),
