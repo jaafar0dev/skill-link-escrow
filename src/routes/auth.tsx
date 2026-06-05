@@ -17,7 +17,14 @@ export const Route = createFileRoute("/auth")({
   component: AuthPage,
 });
 
-const ONBOARD_KEY = "skillswap_onboarded";
+function isStandalone() {
+  if (typeof window === "undefined") return false;
+  return (
+    window.matchMedia?.("(display-mode: standalone)").matches ||
+    // iOS Safari
+    (window.navigator as any).standalone === true
+  );
+}
 
 function AuthPage() {
   const navigate = useNavigate();
@@ -35,13 +42,18 @@ function AuthPage() {
   const [lPassword, setLPassword] = useState("");
 
   useEffect(() => {
-    if (typeof window !== "undefined" && !localStorage.getItem(ONBOARD_KEY)) {
+    if (typeof window === "undefined") return;
+    // Use a separate key when running as an installed PWA so the slides
+    // show on first launch of the installed app, independent of the browser.
+    const key = isStandalone() ? "skillswap_onboarded_pwa" : "skillswap_onboarded";
+    if (!localStorage.getItem(key)) {
       setShowOnboarding(true);
     }
   }, []);
 
   const finishOnboarding = () => {
-    localStorage.setItem(ONBOARD_KEY, "1");
+    const key = isStandalone() ? "skillswap_onboarded_pwa" : "skillswap_onboarded";
+    localStorage.setItem(key, "1");
     setShowOnboarding(false);
   };
 
