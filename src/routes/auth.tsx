@@ -52,7 +52,8 @@ function AuthPage() {
   }, []);
 
   const finishOnboarding = () => {
-    localStorage.setItem(ONBOARD_KEY, "1");
+    const key = isStandalone() ? "skillswap_onboarded_pwa" : "skillswap_onboarded";
+    localStorage.setItem(key, "1");
     setShowOnboarding(false);
   };
 
