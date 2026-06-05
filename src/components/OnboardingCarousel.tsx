@@ -1,63 +1,104 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Briefcase, Handshake, ShieldCheck, ArrowRight } from "lucide-react";
+import { ArrowRight, ShieldCheck } from "lucide-react";
+import slide1 from "@/assets/onboard-1.jpg";
+import slide2 from "@/assets/onboard-2.jpg";
+import slide3 from "@/assets/onboard-3.jpg";
 
 const slides = [
   {
-    icon: Briefcase,
+    image: slide1,
+    kicker: "For students",
     title: "Post what you need",
-    desc: "Students post tasks — coding, design, tutoring, errands — and set a price in Naira.",
+    desc: "Coding, design, tutoring, errands — describe the task and set your Naira price.",
   },
   {
-    icon: Handshake,
+    image: slide2,
+    kicker: "For providers",
     title: "Bid & bargain",
-    desc: "Service providers send offers. Negotiate, then accept the best bid for your job.",
+    desc: "Skilled providers send offers. Negotiate freely, then lock in the best deal.",
   },
   {
-    icon: ShieldCheck,
+    image: slide3,
+    kicker: "Safe by design",
     title: "Escrow keeps it safe",
-    desc: "Funds are held securely and only released to the provider once the work is delivered.",
+    desc: "Funds are held securely and only released once the work is delivered.",
   },
 ];
 
 export function OnboardingCarousel({ onDone }: { onDone: () => void }) {
   const [i, setI] = useState(0);
-  const Icon = slides[i].icon;
   const isLast = i === slides.length - 1;
+  const slide = slides[i];
 
   return (
-    <div className="flex min-h-screen flex-col bg-background p-6">
-      <div className="flex justify-end">
-        <Button variant="ghost" size="sm" onClick={onDone}>Skip</Button>
-      </div>
-
-      <div key={i} className="flex flex-1 flex-col items-center justify-center text-center animate-fade-in">
-        <div className="mb-8 flex h-32 w-32 items-center justify-center rounded-full bg-primary/10">
-          <Icon className="h-16 w-16 text-primary" />
+    <div className="relative flex min-h-screen flex-col bg-background">
+      {/* Top bar */}
+      <div className="absolute inset-x-0 top-0 z-20 flex items-center justify-between p-5">
+        <div className="flex items-center gap-2 text-white drop-shadow">
+          <ShieldCheck className="h-5 w-5" />
+          <span className="text-sm font-semibold tracking-wide">SkillSwap</span>
         </div>
-        <h2 className="mb-3 text-2xl font-bold">{slides[i].title}</h2>
-        <p className="max-w-sm text-muted-foreground">{slides[i].desc}</p>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onDone}
+          className="text-white hover:bg-white/10 hover:text-white"
+        >
+          Skip
+        </Button>
       </div>
 
-      <div className="mb-6 flex justify-center gap-2">
-        {slides.map((_, idx) => (
-          <button
-            key={idx}
-            onClick={() => setI(idx)}
-            className={`h-2 rounded-full transition-all ${idx === i ? "w-8 bg-primary" : "w-2 bg-muted"}`}
-            aria-label={`Go to slide ${idx + 1}`}
-          />
-        ))}
+      {/* Hero image with gradient fade */}
+      <div className="relative h-[58vh] w-full overflow-hidden">
+        <img
+          key={slide.image}
+          src={slide.image}
+          alt=""
+          width={1024}
+          height={1280}
+          className="h-full w-full object-cover animate-fade-in"
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-background" />
       </div>
 
-      <Button
-        size="lg"
-        className="w-full"
-        onClick={() => (isLast ? onDone() : setI(i + 1))}
-      >
-        {isLast ? "Get started" : "Next"}
-        <ArrowRight className="ml-2 h-4 w-4" />
-      </Button>
+      {/* Content card */}
+      <div className="relative z-10 -mt-16 flex flex-1 flex-col rounded-t-3xl bg-background px-6 pb-8 pt-8 shadow-[0_-20px_40px_-20px_rgba(0,0,0,0.15)]">
+        <div key={i} className="flex-1 animate-fade-in">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+            {slide.kicker}
+          </p>
+          <h2 className="mb-3 text-3xl font-bold leading-tight text-foreground">
+            {slide.title}
+          </h2>
+          <p className="max-w-md text-base leading-relaxed text-muted-foreground">
+            {slide.desc}
+          </p>
+        </div>
+
+        {/* Dots */}
+        <div className="mb-6 mt-8 flex justify-center gap-2">
+          {slides.map((_, idx) => (
+            <button
+              key={idx}
+              onClick={() => setI(idx)}
+              className={`h-2 rounded-full transition-all duration-300 ${
+                idx === i ? "w-8 bg-primary" : "w-2 bg-muted"
+              }`}
+              aria-label={`Go to slide ${idx + 1}`}
+            />
+          ))}
+        </div>
+
+        <Button
+          size="lg"
+          className="h-12 w-full rounded-full text-base font-semibold shadow-lg shadow-primary/20"
+          onClick={() => (isLast ? onDone() : setI(i + 1))}
+        >
+          {isLast ? "Get started" : "Continue"}
+          <ArrowRight className="ml-2 h-4 w-4" />
+        </Button>
+      </div>
     </div>
   );
 }
