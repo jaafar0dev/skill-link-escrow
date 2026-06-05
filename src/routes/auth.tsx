@@ -23,6 +23,16 @@ function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
 
+  // Signup
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [role, setRole] = useState<"poster" | "provider">("poster");
+
+  // Login
+  const [lEmail, setLEmail] = useState("");
+  const [lPassword, setLPassword] = useState("");
+
   useEffect(() => {
     if (typeof window !== "undefined" && !localStorage.getItem(ONBOARD_KEY)) {
       setShowOnboarding(true);
@@ -33,18 +43,6 @@ function AuthPage() {
     localStorage.setItem(ONBOARD_KEY, "1");
     setShowOnboarding(false);
   };
-
-  if (showOnboarding) return <OnboardingCarousel onDone={finishOnboarding} />;
-
-  // Signup
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [role, setRole] = useState<"poster" | "provider">("poster");
-
-  // Login
-  const [lEmail, setLEmail] = useState("");
-  const [lPassword, setLPassword] = useState("");
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,6 +72,8 @@ function AuthPage() {
     if (error) return toast.error(error.message);
     navigate({ to: "/dashboard" });
   };
+
+  if (showOnboarding) return <OnboardingCarousel onDone={finishOnboarding} />;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
