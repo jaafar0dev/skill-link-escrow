@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useRoles } from "@/lib/hooks/useRoles";
@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { formatNaira } from "@/lib/format";
 import { StatusPill } from "./dashboard";
-import { Wallet, CheckCircle2, ShieldCheck, Loader2 } from "lucide-react";
+import { Wallet, CheckCircle2, ShieldCheck, Loader2, Inbox } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/jobs/$id")({
   component: JobDetail,
@@ -66,10 +66,26 @@ function JobDetail() {
   const isProvider = roles?.includes("provider");
   const isAssigned = user?.id === job.assigned_provider_id;
   const myBid = bids?.find((b) => b.provider_id === user?.id);
-  const refresh = () => {
-    qc.invalidateQueries({ queryKey: ["job", id] });
-    qc.invalidateQueries({ queryKey: ["bids", id] });
+  const refresh = async () => {
+    await Promise.all([
+      qc.invalidateQueries({ queryKey: ["job", id] }),
+      qc.invalidateQueries({ queryKey: ["bids", id] }),
+      qc.invalidateQueries({ queryKey: ["my-bids"] }),
+    ]);
   };
+
+  useEffect(() => {
+    const ch = supabase
+      .channel(`job-${id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "bids", filter: `job_id=eq.${id}` }, () => {
+        qc.invalidateQueries({ queryKey: ["bids", id] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "jobs", filter: `id=eq.${id}` }, () => {
+        qc.invalidateQueries({ queryKey: ["job", id] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [id, qc]);
 
   const submitBid = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,11 +97,12 @@ function JobDetail() {
       amount_naira: Math.max(0, parseInt(amount || "0", 10)),
       message,
     });
-    setBidLoading(false);
-    if (error) return toast.error(error.message);
-    toast.success("Bid placed");
+    if (error) { setBidLoading(false); return toast.error(error.message); }
     setAmount(""); setMessage("");
-    refresh();
+    await refresh();
+    await qc.refetchQueries({ queryKey: ["bids", id] });
+    setBidLoading(false);
+    toast.success("Bid placed");
   };
 
   const acceptBid = async (bid: any) => {
