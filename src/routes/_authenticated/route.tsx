@@ -1,9 +1,8 @@
-import { createFileRoute, Outlet, redirect, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Outlet, redirect, Link } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useRoles } from "@/lib/hooks/useRoles";
-import { Button } from "@/components/ui/button";
-import { ShieldCheck, LogOut, LayoutDashboard, Briefcase, ShieldAlert } from "lucide-react";
+import { LayoutDashboard, Briefcase, ShieldAlert, Settings } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -18,28 +17,10 @@ export const Route = createFileRoute("/_authenticated")({
 function AuthedLayout() {
   const { user } = useAuth();
   const { data: roles } = useRoles(user?.id);
-  const navigate = useNavigate();
   const isAdmin = roles?.includes("admin");
-
-  const signOut = async () => {
-    await supabase.auth.signOut();
-    navigate({ to: "/auth" });
-  };
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      <header className="sticky top-0 z-10 border-b bg-background/95 pt-16 backdrop-blur sm:pt-0">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
-          <Link to="/dashboard" className="flex items-center gap-2 font-bold">
-            <ShieldCheck className="h-5 w-5 text-primary" />
-            SkillSwap
-          </Link>
-          <Button variant="ghost" size="sm" onClick={signOut}>
-            <LogOut className="h-4 w-4" />
-          </Button>
-        </div>
-      </header>
-
       <main className="mx-auto max-w-5xl px-4 py-6">
         <Outlet />
       </main>
@@ -49,6 +30,7 @@ function AuthedLayout() {
           <NavLink to="/dashboard" icon={<LayoutDashboard className="h-5 w-5" />} label="Home" />
           <NavLink to="/jobs" icon={<Briefcase className="h-5 w-5" />} label="Jobs" />
           {isAdmin && <NavLink to="/admin" icon={<ShieldAlert className="h-5 w-5" />} label="Admin" />}
+          <NavLink to="/settings" icon={<Settings className="h-5 w-5" />} label="Settings" />
         </div>
       </nav>
     </div>
@@ -67,3 +49,4 @@ function NavLink({ to, icon, label }: { to: string; icon: React.ReactNode; label
     </Link>
   );
 }
+
