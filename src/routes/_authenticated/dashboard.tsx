@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Briefcase, Wallet, CheckCircle2 } from "lucide-react";
+import { Plus, Briefcase, Wallet, Sparkles, Rocket } from "lucide-react";
 import { formatNaira } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
@@ -33,15 +33,23 @@ function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Welcome back</h1>
-        <p className="text-sm text-muted-foreground">
-          {roles?.includes("admin")
-            ? "Admin"
-            : isProvider
-              ? "Find jobs and grow your portfolio."
-              : "Post a project to get started."}
-        </p>
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary via-primary to-primary/70 p-5 text-primary-foreground shadow-lg">
+        <div className="absolute -right-8 -bottom-8 opacity-15">
+          <Rocket className="h-36 w-36" />
+        </div>
+        <div className="relative">
+          <p className="flex items-center gap-1 text-xs uppercase tracking-wider opacity-90">
+            <Sparkles className="h-3.5 w-3.5" /> SkillSwap
+          </p>
+          <h1 className="mt-1 text-2xl font-bold">Welcome back</h1>
+          <p className="mt-1 text-sm opacity-90">
+            {roles?.includes("admin")
+              ? "Admin dashboard"
+              : isProvider
+                ? "Find jobs and grow your portfolio."
+                : "Post a project to get started."}
+          </p>
+        </div>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
@@ -66,7 +74,17 @@ function Dashboard() {
       <div>
         <h2 className="mb-3 text-sm font-semibold text-muted-foreground">Recent activity</h2>
         {!jobs?.length ? (
-          <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">No jobs yet.</CardContent></Card>
+          <Card>
+            <CardContent className="flex flex-col items-center gap-2 py-12 text-center">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+                <Briefcase className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <p className="font-medium">No jobs yet</p>
+              <p className="max-w-xs text-sm text-muted-foreground">
+                {isPoster ? "Post your first job to attract bids." : "Browse open jobs to start bidding."}
+              </p>
+            </CardContent>
+          </Card>
         ) : (
           <div className="space-y-2">
             {jobs.map((j) => (
