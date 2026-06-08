@@ -28,7 +28,7 @@ function AuthedLayout() {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      <header className="sticky top-0 z-10 border-b bg-background/95 pt-6 backdrop-blur sm:pt-0">
+      <header className="sticky top-0 z-10 border-b bg-background/95 pt-16 backdrop-blur sm:pt-0">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
           <Link to="/dashboard" className="flex items-center gap-2 font-bold">
             <ShieldCheck className="h-5 w-5 text-primary" />

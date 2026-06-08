@@ -34,7 +34,7 @@ export function OnboardingCarousel({ onDone }: { onDone: () => void }) {
   return (
     <div className="relative flex min-h-screen flex-col bg-background">
       {/* Top bar */}
-      <div className="absolute inset-x-0 top-12 z-20 flex items-center justify-between px-5 py-4 sm:top-0 sm:p-5">
+      <div className="absolute inset-x-0 top-0 z-20 flex items-center justify-between p-5">
         <div className="flex items-center gap-2 text-white drop-shadow">
           <ShieldCheck className="h-5 w-5" />
           <span className="text-sm font-semibold tracking-wide">SkillSwap</span>
