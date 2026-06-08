@@ -152,5 +152,11 @@
     padding-bottom: env(safe-area-inset-bottom);
     min-height: 100svh;
   }
+
+  @media (max-width: 768px) {
+    body {
+      padding-top: calc(env(safe-area-inset-top, 0px) + 44px);
+    }
+  }
 }
 
