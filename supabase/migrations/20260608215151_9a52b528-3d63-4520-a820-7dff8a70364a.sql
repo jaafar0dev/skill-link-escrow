@@ -1,0 +1,4 @@
+ALTER PUBLICATION supabase_realtime ADD TABLE public.bids;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.jobs;
+ALTER TABLE public.bids REPLICA IDENTITY FULL;
+ALTER TABLE public.jobs REPLICA IDENTITY FULL;
