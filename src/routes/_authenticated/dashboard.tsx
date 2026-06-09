@@ -5,8 +5,9 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Briefcase, Wallet, Sparkles, Rocket } from "lucide-react";
+import { Plus, Briefcase, Wallet, Sparkles, Rocket, TrendingUp, Gavel, CheckCircle2, Zap } from "lucide-react";
 import { formatNaira } from "@/lib/format";
+
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   component: Dashboard,
