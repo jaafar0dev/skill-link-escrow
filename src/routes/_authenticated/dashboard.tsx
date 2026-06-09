@@ -152,6 +152,25 @@ function Dashboard() {
   );
 }
 
+function StatCard({ label, value, Icon, tone }: { label: string; value: number; Icon: any; tone: "primary" | "emerald" }) {
+  const toneClasses = tone === "primary"
+    ? "from-primary/15 to-primary/5 text-primary"
+    : "from-emerald-500/15 to-emerald-500/5 text-emerald-600 dark:text-emerald-400";
+  return (
+    <Card className={`overflow-hidden bg-gradient-to-br ${toneClasses} border-0`}>
+      <CardContent className="flex items-center gap-3 pt-6">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-background/70 shadow-sm">
+          <Icon className="h-5 w-5" />
+        </div>
+        <div>
+          <p className="text-2xl font-bold leading-none text-foreground">{value}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{label}</p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function StatusPill({ status }: { status: string }) {
   const map: Record<string, string> = {
     open: "bg-blue-500/15 text-blue-600",
