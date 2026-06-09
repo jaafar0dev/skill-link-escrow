@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { formatNaira } from "@/lib/format";
 import { StatusPill } from "./dashboard";
-import { Wallet, CheckCircle2, ShieldCheck, Loader2, Inbox } from "lucide-react";
+import { Wallet, CheckCircle2, ShieldCheck, Loader2, Inbox, Gavel } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/jobs/$id")({
   component: JobDetail,
