@@ -32,9 +32,9 @@ export function OnboardingCarousel({ onDone }: { onDone: () => void }) {
   const slide = slides[i];
 
   return (
-    <div className="relative flex min-h-screen flex-col bg-background">
+    <div className="relative flex h-[100svh] flex-col overflow-hidden bg-background">
       {/* Top bar */}
-      <div className="absolute inset-x-0 top-0 z-20 flex items-center justify-between p-5">
+      <div className="absolute inset-x-0 top-0 z-20 flex items-center justify-between p-4">
         <div className="flex items-center gap-2 text-white drop-shadow">
           <ShieldCheck className="h-5 w-5" />
           <span className="text-sm font-semibold tracking-wide">SkillSwap</span>
@@ -50,34 +50,32 @@ export function OnboardingCarousel({ onDone }: { onDone: () => void }) {
       </div>
 
       {/* Hero image with gradient fade */}
-      <div className="relative h-[58vh] w-full overflow-hidden">
+      <div className="relative w-full flex-1 min-h-0 overflow-hidden">
         <img
           key={slide.image}
           src={slide.image}
           alt=""
-          width={1024}
-          height={1280}
           className="h-full w-full object-cover animate-fade-in"
         />
         <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-background" />
       </div>
 
       {/* Content card */}
-      <div className="relative z-10 -mt-16 flex flex-1 flex-col rounded-t-3xl bg-background px-6 pb-8 pt-8 shadow-[0_-20px_40px_-20px_rgba(0,0,0,0.15)]">
-        <div key={i} className="flex-1 animate-fade-in">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+      <div className="relative z-10 -mt-12 flex flex-col rounded-t-3xl bg-background px-6 pb-6 pt-6 shadow-[0_-20px_40px_-20px_rgba(0,0,0,0.15)]">
+        <div key={i} className="animate-fade-in">
+          <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
             {slide.kicker}
           </p>
-          <h2 className="mb-3 text-3xl font-bold leading-tight text-foreground">
+          <h2 className="mb-1.5 text-2xl font-bold leading-tight text-foreground">
             {slide.title}
           </h2>
-          <p className="max-w-md text-base leading-relaxed text-muted-foreground">
+          <p className="max-w-md text-sm leading-snug text-muted-foreground">
             {slide.desc}
           </p>
         </div>
 
         {/* Dots */}
-        <div className="mb-6 mt-8 flex justify-center gap-2">
+        <div className="mb-4 mt-4 flex justify-center gap-2">
           {slides.map((_, idx) => (
             <button
               key={idx}

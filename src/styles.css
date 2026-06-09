@@ -160,10 +160,6 @@
     touch-action: pan-y;
   }
 
-  @media (max-width: 768px) {
-    body {
-      padding-top: calc(env(safe-area-inset-top, 0px) + 44px);
-    }
-  }
+  /* Top safe area already handled by body padding; no extra offset needed */
 }
 

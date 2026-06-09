@@ -59,6 +59,20 @@ function JobDetail() {
   const [message, setMessage] = useState("");
   const [bidLoading, setBidLoading] = useState(false);
 
+  useEffect(() => {
+    const ch = supabase
+      .channel(`job-${id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "bids", filter: `job_id=eq.${id}` }, () => {
+        qc.invalidateQueries({ queryKey: ["bids", id] });
+        qc.invalidateQueries({ queryKey: ["my-bids"] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "jobs", filter: `id=eq.${id}` }, () => {
+        qc.invalidateQueries({ queryKey: ["job", id] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [id, qc]);
+
   if (isLoading) return <p className="text-sm text-muted-foreground">Loading…</p>;
   if (!job) return <p className="text-sm text-muted-foreground">Job not found.</p>;
 
@@ -74,18 +88,6 @@ function JobDetail() {
     ]);
   };
 
-  useEffect(() => {
-    const ch = supabase
-      .channel(`job-${id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "bids", filter: `job_id=eq.${id}` }, () => {
-        qc.invalidateQueries({ queryKey: ["bids", id] });
-      })
-      .on("postgres_changes", { event: "*", schema: "public", table: "jobs", filter: `id=eq.${id}` }, () => {
-        qc.invalidateQueries({ queryKey: ["job", id] });
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(ch); };
-  }, [id, qc]);
 
   const submitBid = async (e: React.FormEvent) => {
     e.preventDefault();
