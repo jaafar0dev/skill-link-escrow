@@ -32,12 +32,30 @@ function Dashboard() {
     },
   });
 
-  return (
-    <div className="space-y-6">
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary via-primary to-primary/70 p-5 text-primary-foreground shadow-lg">
-        <div className="absolute -right-8 -bottom-8 opacity-15">
-          <Rocket className="h-36 w-36" />
-        </div>
+  const { data: stats } = useQuery({
+    queryKey: ["stats", user?.id, isProvider],
+    enabled: !!user && !!roles,
+    queryFn: async () => {
+      if (isProvider) {
+        const { data: myBids } = await supabase.from("bids").select("status, amount_naira").eq("provider_id", user!.id);
+        const active = myBids?.filter((b) => b.status === "pending").length ?? 0;
+        const won = myBids?.filter((b) => b.status === "accepted").length ?? 0;
+        return { primary: { label: "Active bids", value: active, icon: Gavel }, secondary: { label: "Won", value: won, icon: CheckCircle2 } };
+      }
+      const { data: myJobs } = await supabase.from("jobs").select("status").eq("poster_id", user!.id);
+      const open = myJobs?.filter((j) => j.status === "open").length ?? 0;
+      const done = myJobs?.filter((j) => j.status === "completed").length ?? 0;
+      return { primary: { label: "Open jobs", value: open, icon: Zap }, secondary: { label: "Completed", value: done, icon: CheckCircle2 } };
+    },
+  });
+
+  const greeting = (() => {
+    const h = new Date().getHours();
+    if (h < 12) return "Good morning";
+    if (h < 18) return "Good afternoon";
+    return "Good evening";
+  })();
+
         <div className="relative">
           <p className="flex items-center gap-1 text-xs uppercase tracking-wider opacity-90">
             <Sparkles className="h-3.5 w-3.5" /> SkillSwap
