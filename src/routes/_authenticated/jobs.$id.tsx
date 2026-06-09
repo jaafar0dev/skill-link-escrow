@@ -99,7 +99,14 @@ function JobDetail() {
       amount_naira: Math.max(0, parseInt(amount || "0", 10)),
       message,
     });
-    if (error) { setBidLoading(false); return toast.error(error.message); }
+    if (error) {
+      setBidLoading(false);
+      if ((error as any).code === "23505") {
+        await refresh();
+        return toast.error("You've already placed a bid on this job.");
+      }
+      return toast.error(error.message);
+    }
     setAmount(""); setMessage("");
     await refresh();
     await qc.refetchQueries({ queryKey: ["bids", id] });
