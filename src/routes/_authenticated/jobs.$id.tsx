@@ -185,21 +185,52 @@ function JobDetail() {
         </CardContent>
       </Card>
 
+      {/* Already-placed bid summary */}
+      {myBid && (
+        <Card className="border-primary/40 bg-gradient-to-br from-primary/10 to-transparent">
+          <CardContent className="flex items-center justify-between gap-3 pt-6">
+            <div>
+              <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-primary">
+                <CheckCircle2 className="h-3.5 w-3.5" /> Your bid
+              </p>
+              <p className="mt-1 text-lg font-bold">{formatNaira(myBid.amount_naira)}</p>
+              {myBid.message && <p className="mt-1 text-xs text-muted-foreground">"{myBid.message}"</p>}
+            </div>
+            <span className="rounded-full bg-background/70 px-2 py-0.5 text-xs font-medium capitalize">{myBid.status}</span>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Bid form for providers */}
       {job.status === "open" && isProvider && !isPoster && !myBid && (
-        <Card>
-          <CardHeader><CardTitle>Place a bid</CardTitle></CardHeader>
-          <CardContent>
-            <form onSubmit={submitBid} className="space-y-3">
+        <Card className="overflow-hidden border-primary/30">
+          <div className="bg-gradient-to-r from-primary to-emerald-600 px-5 py-4 text-primary-foreground">
+            <div className="flex items-center gap-2">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/15">
+                <Gavel className="h-4.5 w-4.5" />
+              </div>
+              <div>
+                <p className="font-semibold leading-tight">Place your bid</p>
+                <p className="text-xs opacity-90">One bid per job — make it count</p>
+              </div>
+            </div>
+          </div>
+          <CardContent className="pt-5">
+            <form onSubmit={submitBid} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="a">Your price (₦)</Label>
-                <Input id="a" type="number" min={0} required value={amount} onChange={(e) => setAmount(e.target.value)} />
+                <Label htmlFor="a">Your price</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-muted-foreground">₦</span>
+                  <Input id="a" type="number" min={0} required value={amount} onChange={(e) => setAmount(e.target.value)}
+                    className="pl-8 text-lg font-semibold" placeholder="0" />
+                </div>
+                <p className="text-xs text-muted-foreground">Budget: {formatNaira(job.budget_naira)}</p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="m">Message (optional)</Label>
+                <Label htmlFor="m">Pitch (optional)</Label>
                 <Textarea id="m" rows={3} value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Why should they pick you?" />
               </div>
-              <Button type="submit" disabled={bidLoading} className="w-full">
+              <Button type="submit" disabled={bidLoading} className="w-full" size="lg">
                 {bidLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Submit bid
               </Button>
             </form>
@@ -207,30 +238,47 @@ function JobDetail() {
         </Card>
       )}
 
-      {/* Bids list */}
-      <div>
-        <h2 className="mb-2 text-sm font-semibold text-muted-foreground">Bids ({bids?.length ?? 0})</h2>
-        <div className="space-y-2">
-          {bids?.map((b: any) => (
-            <Card key={b.id} className={b.status === "accepted" ? "border-emerald-500/40" : ""}>
-              <CardContent className="flex items-center justify-between pt-6">
-                <div>
-                  <p className="font-medium">{b.profiles?.full_name || "Provider"}</p>
-                  <p className="text-sm text-muted-foreground">{b.message || "—"}</p>
-                  <p className="mt-1 text-sm font-semibold">{formatNaira(b.amount_naira)}</p>
-                </div>
-                <div className="flex flex-col items-end gap-2">
-                  <span className="text-xs text-muted-foreground">{b.status}</span>
-                  {isPoster && job.status === "open" && b.status === "pending" && (
-                    <Button size="sm" onClick={() => acceptBid(b)}>Accept</Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-          {!bids?.length && <p className="text-sm text-muted-foreground">No bids yet.</p>}
+      {/* Bids list — visible to poster & admin */}
+      {(isPoster || roles?.includes("admin")) && (
+        <div>
+          <h2 className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-muted-foreground">
+            <Gavel className="h-4 w-4" /> Bids received ({bids?.length ?? 0})
+          </h2>
+          <div className="space-y-2">
+            {bids?.map((b: any) => (
+              <Card key={b.id} className={`overflow-hidden ${b.status === "accepted" ? "border-emerald-500/50 bg-emerald-500/5" : ""}`}>
+                <CardContent className="flex items-start justify-between gap-3 pt-6">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-semibold">{b.profiles?.full_name || "Provider"}</p>
+                    {b.message && <p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">"{b.message}"</p>}
+                    <p className="mt-1.5 flex items-center gap-1 text-base font-bold text-primary">
+                      <Wallet className="h-3.5 w-3.5" /> {formatNaira(b.amount_naira)}
+                    </p>
+                  </div>
+                  <div className="flex flex-col items-end gap-2">
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider ${
+                      b.status === "accepted" ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
+                      : b.status === "rejected" ? "bg-muted text-muted-foreground"
+                      : "bg-amber-500/15 text-amber-700 dark:text-amber-400"
+                    }`}>{b.status}</span>
+                    {isPoster && job.status === "open" && b.status === "pending" && (
+                      <Button size="sm" onClick={() => acceptBid(b)}>Accept</Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+            {!bids?.length && (
+              <Card>
+                <CardContent className="flex flex-col items-center gap-2 py-10 text-center">
+                  <Inbox className="h-8 w-8 text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">No bids yet — share your job to get bids faster.</p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
