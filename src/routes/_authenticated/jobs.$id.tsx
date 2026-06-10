@@ -207,8 +207,8 @@ function JobDetail() {
         </Card>
       )}
 
-      {/* Bid form for providers */}
-      {job.status === "open" && isProvider && !isPoster && !myBid && (
+      {/* Bid form for providers — also used for editing an existing bid */}
+      {job.status === "open" && isProvider && !isPoster && (
         <Card className="overflow-hidden border-primary/30">
           <div className="bg-gradient-to-r from-primary to-emerald-600 px-5 py-4 text-primary-foreground">
             <div className="flex items-center gap-2">
@@ -216,8 +216,16 @@ function JobDetail() {
                 <Gavel className="h-4.5 w-4.5" />
               </div>
               <div>
-                <p className="font-semibold leading-tight">Place your bid</p>
-                <p className="text-xs opacity-90">One bid per job — make it count</p>
+                <p className="font-semibold leading-tight">
+                  {myBid ? (myBid.status === "rejected" ? "Counter your bid" : "Update your bid") : "Place your bid"}
+                </p>
+                <p className="text-xs opacity-90">
+                  {myBid
+                    ? myBid.status === "rejected"
+                      ? "Your last bid was rejected — try a different price"
+                      : `Current bid: ${formatNaira(myBid.amount_naira)} · ${myBid.status}`
+                    : "Haggle — you can edit your bid anytime"}
+                </p>
               </div>
             </div>
           </div>
@@ -228,16 +236,17 @@ function JobDetail() {
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-muted-foreground">₦</span>
                   <Input id="a" type="number" min={0} required value={amount} onChange={(e) => setAmount(e.target.value)}
-                    className="pl-8 text-lg font-semibold" placeholder="0" />
+                    className="pl-8 text-lg font-semibold" placeholder={myBid ? String(myBid.amount_naira) : "0"} />
                 </div>
                 <p className="text-xs text-muted-foreground">Budget: {formatNaira(job.budget_naira)}</p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="m">Pitch (optional)</Label>
-                <Textarea id="m" rows={3} value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Why should they pick you?" />
+                <Textarea id="m" rows={3} value={message} onChange={(e) => setMessage(e.target.value)} placeholder={myBid?.message || "Why should they pick you?"} />
               </div>
               <Button type="submit" disabled={bidLoading} className="w-full" size="lg">
-                {bidLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Submit bid
+                {bidLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {myBid ? "Update bid" : "Submit bid"}
               </Button>
             </form>
           </CardContent>
