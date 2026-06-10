@@ -38,11 +38,16 @@ function JobDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("bids")
-        .select("*, profiles:provider_id(full_name)")
+        .select("*")
         .eq("job_id", id)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data;
+      const pids = Array.from(new Set((data ?? []).map((b) => b.provider_id)));
+      const { data: profs } = pids.length
+        ? await supabase.from("profiles").select("id, full_name").in("id", pids)
+        : { data: [] as { id: string; full_name: string }[] };
+      const nameById = new Map((profs ?? []).map((p) => [p.id, p.full_name]));
+      return (data ?? []).map((b) => ({ ...b, profiles: { full_name: nameById.get(b.provider_id) ?? "Provider" } }));
     },
   });
 
@@ -93,40 +98,34 @@ function JobDetail() {
     e.preventDefault();
     if (!user) return;
     setBidLoading(true);
-    const { error } = await supabase.from("bids").insert({
-      job_id: id,
-      provider_id: user.id,
-      amount_naira: Math.max(0, parseInt(amount || "0", 10)),
-      message,
-    });
-    if (error) {
-      setBidLoading(false);
-      if ((error as any).code === "23505") {
-        await refresh();
-        return toast.error("You've already placed a bid on this job.");
-      }
-      return toast.error(error.message);
-    }
+    const amt = Math.max(0, parseInt(amount || "0", 10));
+    const { error } = myBid
+      ? await supabase.from("bids")
+          .update({ amount_naira: amt, message, status: "pending" })
+          .eq("id", myBid.id)
+      : await supabase.from("bids").insert({
+          job_id: id,
+          provider_id: user.id,
+          amount_naira: amt,
+          message,
+        });
+    setBidLoading(false);
+    if (error) return toast.error(error.message);
     setAmount(""); setMessage("");
     await refresh();
-    await qc.refetchQueries({ queryKey: ["bids", id] });
-    setBidLoading(false);
-    toast.success("Bid placed");
+    toast.success(myBid ? "Bid updated" : "Bid placed");
   };
 
   const acceptBid = async (bid: any) => {
-    // 1. Reject other bids, accept this one
     const { error: bErr } = await supabase.from("bids").update({ status: "rejected" }).eq("job_id", id).neq("id", bid.id);
     if (bErr) return toast.error(bErr.message);
     await supabase.from("bids").update({ status: "accepted" }).eq("id", bid.id);
-    // 2. Update job
     const { error: jErr } = await supabase.from("jobs").update({
       status: "in_escrow",
       assigned_provider_id: bid.provider_id,
       final_price_naira: bid.amount_naira,
     }).eq("id", id);
     if (jErr) return toast.error(jErr.message);
-    // 3. Create escrow (simulated funding)
     const { error: eErr } = await supabase.from("escrow_transactions").insert({
       job_id: id,
       amount_naira: bid.amount_naira,
@@ -134,6 +133,13 @@ function JobDetail() {
     });
     if (eErr) return toast.error(eErr.message);
     toast.success("Bid accepted — funds held in escrow");
+    refresh();
+  };
+
+  const rejectBid = async (bid: any) => {
+    const { error } = await supabase.from("bids").update({ status: "rejected" }).eq("id", bid.id);
+    if (error) return toast.error(error.message);
+    toast.success("Bid rejected — they can submit a counter-offer");
     refresh();
   };
 
@@ -201,8 +207,8 @@ function JobDetail() {
         </Card>
       )}
 
-      {/* Bid form for providers */}
-      {job.status === "open" && isProvider && !isPoster && !myBid && (
+      {/* Bid form for providers — also used for editing an existing bid */}
+      {job.status === "open" && isProvider && !isPoster && (
         <Card className="overflow-hidden border-primary/30">
           <div className="bg-gradient-to-r from-primary to-emerald-600 px-5 py-4 text-primary-foreground">
             <div className="flex items-center gap-2">
@@ -210,8 +216,16 @@ function JobDetail() {
                 <Gavel className="h-4.5 w-4.5" />
               </div>
               <div>
-                <p className="font-semibold leading-tight">Place your bid</p>
-                <p className="text-xs opacity-90">One bid per job — make it count</p>
+                <p className="font-semibold leading-tight">
+                  {myBid ? (myBid.status === "rejected" ? "Counter your bid" : "Update your bid") : "Place your bid"}
+                </p>
+                <p className="text-xs opacity-90">
+                  {myBid
+                    ? myBid.status === "rejected"
+                      ? "Your last bid was rejected — try a different price"
+                      : `Current bid: ${formatNaira(myBid.amount_naira)} · ${myBid.status}`
+                    : "Haggle — you can edit your bid anytime"}
+                </p>
               </div>
             </div>
           </div>
@@ -222,16 +236,17 @@ function JobDetail() {
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-muted-foreground">₦</span>
                   <Input id="a" type="number" min={0} required value={amount} onChange={(e) => setAmount(e.target.value)}
-                    className="pl-8 text-lg font-semibold" placeholder="0" />
+                    className="pl-8 text-lg font-semibold" placeholder={myBid ? String(myBid.amount_naira) : "0"} />
                 </div>
                 <p className="text-xs text-muted-foreground">Budget: {formatNaira(job.budget_naira)}</p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="m">Pitch (optional)</Label>
-                <Textarea id="m" rows={3} value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Why should they pick you?" />
+                <Textarea id="m" rows={3} value={message} onChange={(e) => setMessage(e.target.value)} placeholder={myBid?.message || "Why should they pick you?"} />
               </div>
               <Button type="submit" disabled={bidLoading} className="w-full" size="lg">
-                {bidLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Submit bid
+                {bidLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {myBid ? "Update bid" : "Submit bid"}
               </Button>
             </form>
           </CardContent>
@@ -262,7 +277,10 @@ function JobDetail() {
                       : "bg-amber-500/15 text-amber-700 dark:text-amber-400"
                     }`}>{b.status}</span>
                     {isPoster && job.status === "open" && b.status === "pending" && (
-                      <Button size="sm" onClick={() => acceptBid(b)}>Accept</Button>
+                      <div className="flex gap-1.5">
+                        <Button size="sm" variant="outline" onClick={() => rejectBid(b)}>Reject</Button>
+                        <Button size="sm" onClick={() => acceptBid(b)}>Accept</Button>
+                      </div>
                     )}
                   </div>
                 </CardContent>
