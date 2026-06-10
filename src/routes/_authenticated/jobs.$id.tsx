@@ -98,40 +98,34 @@ function JobDetail() {
     e.preventDefault();
     if (!user) return;
     setBidLoading(true);
-    const { error } = await supabase.from("bids").insert({
-      job_id: id,
-      provider_id: user.id,
-      amount_naira: Math.max(0, parseInt(amount || "0", 10)),
-      message,
-    });
-    if (error) {
-      setBidLoading(false);
-      if ((error as any).code === "23505") {
-        await refresh();
-        return toast.error("You've already placed a bid on this job.");
-      }
-      return toast.error(error.message);
-    }
+    const amt = Math.max(0, parseInt(amount || "0", 10));
+    const { error } = myBid
+      ? await supabase.from("bids")
+          .update({ amount_naira: amt, message, status: "pending" })
+          .eq("id", myBid.id)
+      : await supabase.from("bids").insert({
+          job_id: id,
+          provider_id: user.id,
+          amount_naira: amt,
+          message,
+        });
+    setBidLoading(false);
+    if (error) return toast.error(error.message);
     setAmount(""); setMessage("");
     await refresh();
-    await qc.refetchQueries({ queryKey: ["bids", id] });
-    setBidLoading(false);
-    toast.success("Bid placed");
+    toast.success(myBid ? "Bid updated" : "Bid placed");
   };
 
   const acceptBid = async (bid: any) => {
-    // 1. Reject other bids, accept this one
     const { error: bErr } = await supabase.from("bids").update({ status: "rejected" }).eq("job_id", id).neq("id", bid.id);
     if (bErr) return toast.error(bErr.message);
     await supabase.from("bids").update({ status: "accepted" }).eq("id", bid.id);
-    // 2. Update job
     const { error: jErr } = await supabase.from("jobs").update({
       status: "in_escrow",
       assigned_provider_id: bid.provider_id,
       final_price_naira: bid.amount_naira,
     }).eq("id", id);
     if (jErr) return toast.error(jErr.message);
-    // 3. Create escrow (simulated funding)
     const { error: eErr } = await supabase.from("escrow_transactions").insert({
       job_id: id,
       amount_naira: bid.amount_naira,
@@ -139,6 +133,13 @@ function JobDetail() {
     });
     if (eErr) return toast.error(eErr.message);
     toast.success("Bid accepted — funds held in escrow");
+    refresh();
+  };
+
+  const rejectBid = async (bid: any) => {
+    const { error } = await supabase.from("bids").update({ status: "rejected" }).eq("id", bid.id);
+    if (error) return toast.error(error.message);
+    toast.success("Bid rejected — they can submit a counter-offer");
     refresh();
   };
 
