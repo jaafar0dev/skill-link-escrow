@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/hooks/useAuth";
 import { useRoles } from "@/lib/hooks/useRoles";
 import { Card, CardContent } from "@/components/ui/card";
 import { Inbox, Gavel, Wallet, Sparkles } from "lucide-react";
-import { formatNaira } from "@/lib/format";
+import { formatNaira, formatStatus } from "@/lib/format";
 import { StatusPill } from "./dashboard";
 import { useQueryClient } from "@tanstack/react-query";
 
