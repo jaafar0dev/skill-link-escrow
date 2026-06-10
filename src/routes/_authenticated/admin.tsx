@@ -97,15 +97,6 @@ function AdminPage() {
     qc.invalidateQueries({ queryKey: ["admin-escrows"] });
   };
 
-  const refund = async (escrowId: string, jobId: string) => {
-    await supabase
-      .from("escrow_transactions")
-      .update({ status: "refunded", released_at: new Date().toISOString(), released_by: user!.id })
-      .eq("id", escrowId);
-    await supabase.from("jobs").update({ status: "cancelled" }).eq("id", jobId);
-    toast.success("Refunded to poster");
-    qc.invalidateQueries({ queryKey: ["admin-escrows"] });
-  };
 
   return (
     <div className="space-y-6">
