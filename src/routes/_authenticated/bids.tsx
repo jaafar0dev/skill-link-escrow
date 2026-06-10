@@ -39,11 +39,14 @@ function BidsPage() {
       if (!ids.length) return [];
       const { data, error } = await supabase
         .from("bids")
-        .select("*, jobs:job_id(id, title, status, budget_naira), profiles:provider_id(full_name)")
+        .select("*, jobs:job_id(id, title, status, budget_naira)")
         .in("job_id", ids)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data;
+      const pids = Array.from(new Set((data ?? []).map((b) => b.provider_id)));
+      const { data: profs } = await supabase.from("profiles").select("id, full_name").in("id", pids);
+      const nameById = new Map((profs ?? []).map((p) => [p.id, p.full_name]));
+      return (data ?? []).map((b) => ({ ...b, profiles: { full_name: nameById.get(b.provider_id) ?? "Provider" } }));
     },
   });
 
