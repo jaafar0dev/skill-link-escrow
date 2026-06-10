@@ -146,7 +146,7 @@ function JobDetail() {
   const markDelivered = async () => {
     const { error } = await supabase.from("jobs").update({ status: "delivered" }).eq("id", id);
     if (error) return toast.error(error.message);
-    toast.success("Marked delivered — waiting for admin to release escrow");
+    toast.success("Marked as delivered — an admin will release the funds");
     refresh();
   };
 
