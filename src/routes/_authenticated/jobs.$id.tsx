@@ -38,11 +38,16 @@ function JobDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("bids")
-        .select("*, profiles:provider_id(full_name)")
+        .select("*")
         .eq("job_id", id)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data;
+      const pids = Array.from(new Set((data ?? []).map((b) => b.provider_id)));
+      const { data: profs } = pids.length
+        ? await supabase.from("profiles").select("id, full_name").in("id", pids)
+        : { data: [] as { id: string; full_name: string }[] };
+      const nameById = new Map((profs ?? []).map((p) => [p.id, p.full_name]));
+      return (data ?? []).map((b) => ({ ...b, profiles: { full_name: nameById.get(b.provider_id) ?? "Provider" } }));
     },
   });
 
