@@ -277,7 +277,10 @@ function JobDetail() {
                       : "bg-amber-500/15 text-amber-700 dark:text-amber-400"
                     }`}>{b.status}</span>
                     {isPoster && job.status === "open" && b.status === "pending" && (
-                      <Button size="sm" onClick={() => acceptBid(b)}>Accept</Button>
+                      <div className="flex gap-1.5">
+                        <Button size="sm" variant="outline" onClick={() => rejectBid(b)}>Reject</Button>
+                        <Button size="sm" onClick={() => acceptBid(b)}>Accept</Button>
+                      </div>
                     )}
                   </div>
                 </CardContent>
