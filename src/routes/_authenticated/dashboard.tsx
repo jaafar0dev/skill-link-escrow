@@ -179,9 +179,12 @@ export function StatusPill({ status }: { status: string }) {
     completed: "bg-emerald-500/15 text-emerald-600",
     cancelled: "bg-muted text-muted-foreground",
   };
+  const label = status
+    ? status.split("_").map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" ")
+    : "—";
   return (
     <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${map[status] ?? "bg-muted"}`}>
-      {status === "in_escrow" ? "in escrow" : status}
+      {label}
     </span>
   );
 }

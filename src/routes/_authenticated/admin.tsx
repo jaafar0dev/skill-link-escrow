@@ -56,6 +56,8 @@ function AdminPage() {
   }
 
   const release = async (escrowId: string, jobId: string) => {
+    const { data: esc } = await supabase.from("escrow_transactions").select("amount_naira").eq("id", escrowId).maybeSingle();
+    const { data: jb } = await supabase.from("jobs").select("assigned_provider_id, title").eq("id", jobId).maybeSingle();
     const { error: eErr } = await supabase
       .from("escrow_transactions")
       .update({ status: "released", released_at: new Date().toISOString(), released_by: user!.id })
@@ -63,19 +65,38 @@ function AdminPage() {
     if (eErr) return toast.error(eErr.message);
     const { error: jErr } = await supabase.from("jobs").update({ status: "completed" }).eq("id", jobId);
     if (jErr) return toast.error(jErr.message);
-    toast.success("Escrow released");
+    if (jb?.assigned_provider_id && esc?.amount_naira) {
+      await supabase.from("wallet_transactions").insert({
+        user_id: jb.assigned_provider_id,
+        amount_naira: esc.amount_naira,
+        kind: "earning",
+        note: `Earnings from "${jb.title}"`,
+      });
+    }
+    toast.success("Escrow released to provider's wallet");
     qc.invalidateQueries({ queryKey: ["admin-escrows"] });
   };
 
   const refund = async (escrowId: string, jobId: string) => {
+    const { data: esc } = await supabase.from("escrow_transactions").select("amount_naira").eq("id", escrowId).maybeSingle();
+    const { data: jb } = await supabase.from("jobs").select("poster_id, title").eq("id", jobId).maybeSingle();
     await supabase
       .from("escrow_transactions")
       .update({ status: "refunded", released_at: new Date().toISOString(), released_by: user!.id })
       .eq("id", escrowId);
     await supabase.from("jobs").update({ status: "cancelled" }).eq("id", jobId);
-    toast.success("Refunded to poster");
+    if (jb?.poster_id && esc?.amount_naira) {
+      await supabase.from("wallet_transactions").insert({
+        user_id: jb.poster_id,
+        amount_naira: esc.amount_naira,
+        kind: "refund",
+        note: `Refund from "${jb.title}"`,
+      });
+    }
+    toast.success("Refunded to poster's wallet");
     qc.invalidateQueries({ queryKey: ["admin-escrows"] });
   };
+
 
   return (
     <div className="space-y-6">

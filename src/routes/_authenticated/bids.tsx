@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/hooks/useAuth";
 import { useRoles } from "@/lib/hooks/useRoles";
 import { Card, CardContent } from "@/components/ui/card";
 import { Inbox, Gavel, Wallet, Sparkles } from "lucide-react";
-import { formatNaira } from "@/lib/format";
+import { formatNaira, formatStatus } from "@/lib/format";
 import { StatusPill } from "./dashboard";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -107,7 +107,7 @@ function BidsPage() {
                   </div>
                   <div className="flex flex-col items-end gap-1">
                     <StatusPill status={b.status} />
-                    {b.jobs?.status && <span className="text-[10px] text-muted-foreground">{b.jobs.status}</span>}
+                    {b.jobs?.status && <span className="text-[10px] text-muted-foreground">{formatStatus(b.jobs.status)}</span>}
                   </div>
                 </CardContent>
               </Card>

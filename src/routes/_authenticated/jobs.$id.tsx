@@ -146,7 +146,7 @@ function JobDetail() {
   const markDelivered = async () => {
     const { error } = await supabase.from("jobs").update({ status: "delivered" }).eq("id", id);
     if (error) return toast.error(error.message);
-    toast.success("Marked delivered — waiting for admin to release escrow");
+    toast.success("Marked as delivered — an admin will release the funds");
     refresh();
   };
 
@@ -184,9 +184,16 @@ function JobDetail() {
             <Button onClick={markDelivered}>Mark as delivered</Button>
           )}
           {isPoster && job.status === "delivered" && (
-            <p className="text-xs text-muted-foreground">
-              Provider marked delivered. An admin will review and release escrow.
-            </p>
+            <div className="rounded-md bg-violet-500/10 p-3 text-sm text-violet-700 dark:text-violet-400">
+              <ShieldCheck className="mr-1 inline h-4 w-4" />
+              Provider marked as delivered — an admin will release the funds shortly.
+            </div>
+          )}
+          {isAssigned && job.status === "delivered" && (
+            <div className="rounded-md bg-violet-500/10 p-3 text-sm text-violet-700 dark:text-violet-400">
+              <ShieldCheck className="mr-1 inline h-4 w-4" />
+              Delivery submitted — an admin will release the funds to your wallet shortly.
+            </div>
           )}
         </CardContent>
       </Card>
