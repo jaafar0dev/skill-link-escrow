@@ -3,11 +3,11 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { useRoles } from "@/lib/hooks/useRoles";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LogOut, Mail, Wallet, Plus, ArrowDownCircle, ArrowUpCircle, Loader2 } from "lucide-react";
+import { LogOut, Mail, Wallet, ArrowDownCircle, ArrowUpCircle } from "lucide-react";
 import { toast } from "sonner";
 import { formatNaira } from "@/lib/format";
 
@@ -17,16 +17,21 @@ export const Route = createFileRoute("/_authenticated/settings")({
 
 function SettingsPage() {
   const { user } = useAuth();
+  const { data: roles } = useRoles(user?.id);
+  const isPoster = roles?.includes("poster");
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const [amount, setAmount] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [depositAmount, setDepositAmount] = useState("");
 
   const { data: wallet } = useQuery({
     queryKey: ["wallet", user?.id],
     enabled: !!user,
     queryFn: async () => {
-      const { data } = await supabase.from("wallets").select("balance_naira").eq("user_id", user!.id).maybeSingle();
+      const { data } = await supabase
+        .from("wallets")
+        .select("balance_naira")
+        .eq("user_id", user!.id)
+        .maybeSingle();
       return data;
     },
   });
@@ -50,27 +55,27 @@ function SettingsPage() {
     navigate({ to: "/auth" });
   };
 
-  const deposit = async (e: React.FormEvent) => {
+  const balance = wallet?.balance_naira ?? 0;
+
+  const depositFunds = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
-    const amt = Math.max(0, parseInt(amount || "0", 10));
-    if (!amt) return toast.error("Enter an amount");
-    setLoading(true);
+    const amount = Math.max(0, parseInt(depositAmount || "0", 10));
+    if (!amount) return toast.error("Enter a valid deposit amount.");
+
     const { error } = await supabase.from("wallet_transactions").insert({
       user_id: user.id,
-      amount_naira: amt,
+      amount_naira: amount,
       kind: "deposit",
-      note: "Manual deposit",
+      note: "Student wallet deposit",
     });
-    setLoading(false);
     if (error) return toast.error(error.message);
-    setAmount("");
+
+    setDepositAmount("");
     qc.invalidateQueries({ queryKey: ["wallet", user.id] });
     qc.invalidateQueries({ queryKey: ["wallet-tx", user.id] });
-    toast.success(`Deposited ${formatNaira(amt)}`);
+    toast.success("Deposit successful.");
   };
-
-  const balance = wallet?.balance_naira ?? 0;
 
   return (
     <div className="space-y-6">
@@ -90,35 +95,48 @@ function SettingsPage() {
               <Wallet className="h-3.5 w-3.5" /> Wallet balance
             </p>
             <p className="mt-1 text-4xl font-bold">{formatNaira(balance)}</p>
-            <p className="mt-1 text-xs opacity-90">Use this to fund jobs and pay freelancers</p>
+            <p className="mt-1 text-xs opacity-90">
+              Your balance grows only from completed work and refunds.
+            </p>
           </div>
         </CardContent>
       </Card>
 
-      {/* Deposit form */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Plus className="h-4 w-4" /> Deposit funds
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={deposit} className="space-y-3">
-            <div className="space-y-2">
-              <Label htmlFor="amt">Amount</Label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-muted-foreground">₦</span>
-                <Input id="amt" type="number" min={1} value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="5000" className="pl-8 text-lg font-semibold" />
+      {isPoster ? (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Deposit funds</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form className="space-y-3" onSubmit={depositFunds}>
+              <div className="space-y-2">
+                <Label htmlFor="deposit">Deposit amount</Label>
+                <input
+                  id="deposit"
+                  type="number"
+                  min="0"
+                  step="100"
+                  value={depositAmount}
+                  onChange={(event) => setDepositAmount(event.target.value)}
+                  className="block w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  placeholder="0"
+                />
               </div>
-              <p className="text-xs text-muted-foreground">Manual deposit (demo) — amount is credited instantly.</p>
-            </div>
-            <Button type="submit" disabled={loading} className="w-full">
-              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Deposit
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+              <Button type="submit" className="w-full">
+                Deposit funds
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              Deposits are only available to students.
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Recent transactions */}
       <Card>
@@ -135,16 +153,27 @@ function SettingsPage() {
                 return (
                   <div key={t.id} className="flex items-center justify-between gap-3 px-4 py-3">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className={`flex h-9 w-9 items-center justify-center rounded-full ${positive ? "bg-emerald-500/15 text-emerald-600" : "bg-rose-500/15 text-rose-600"}`}>
-                        {positive ? <ArrowDownCircle className="h-5 w-5" /> : <ArrowUpCircle className="h-5 w-5" />}
+                      <div
+                        className={`flex h-9 w-9 items-center justify-center rounded-full ${positive ? "bg-emerald-500/15 text-emerald-600" : "bg-rose-500/15 text-rose-600"}`}
+                      >
+                        {positive ? (
+                          <ArrowDownCircle className="h-5 w-5" />
+                        ) : (
+                          <ArrowUpCircle className="h-5 w-5" />
+                        )}
                       </div>
                       <div className="min-w-0">
                         <p className="truncate text-sm font-medium capitalize">{t.kind}</p>
-                        {t.note && <p className="truncate text-xs text-muted-foreground">{t.note}</p>}
+                        {t.note && (
+                          <p className="truncate text-xs text-muted-foreground">{t.note}</p>
+                        )}
                       </div>
                     </div>
-                    <p className={`text-sm font-semibold ${positive ? "text-emerald-600" : "text-rose-600"}`}>
-                      {positive ? "+" : ""}{formatNaira(t.amount_naira)}
+                    <p
+                      className={`text-sm font-semibold ${positive ? "text-emerald-600" : "text-rose-600"}`}
+                    >
+                      {positive ? "+" : ""}
+                      {formatNaira(t.amount_naira)}
                     </p>
                   </div>
                 );
