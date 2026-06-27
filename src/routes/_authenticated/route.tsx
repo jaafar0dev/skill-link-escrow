@@ -2,7 +2,7 @@ import { createFileRoute, Outlet, redirect, Link } from "@tanstack/react-router"
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useRoles } from "@/lib/hooks/useRoles";
-import { LayoutDashboard, Briefcase, ShieldAlert, Settings, Gavel } from "lucide-react";
+import { LayoutDashboard, Briefcase, Settings, Gavel } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -16,12 +16,10 @@ export const Route = createFileRoute("/_authenticated")({
 
 function AuthedLayout() {
   const { user } = useAuth();
-  const { data: roles } = useRoles(user?.id);
-  const isAdmin = roles?.includes("admin");
 
   return (
-    <div className="min-h-screen bg-background pb-24">
-      <main className="mx-auto max-w-5xl px-4 py-6">
+    <div className="min-h-screen w-full max-w-full overflow-x-clip bg-background pb-24">
+      <main className="mx-auto w-full max-w-5xl px-4 py-6">
         <Outlet />
       </main>
 
@@ -30,7 +28,6 @@ function AuthedLayout() {
           <NavLink to="/dashboard" icon={<LayoutDashboard className="h-5 w-5" />} label="Home" />
           <NavLink to="/jobs" icon={<Briefcase className="h-5 w-5" />} label="Jobs" />
           <NavLink to="/bids" icon={<Gavel className="h-5 w-5" />} label="Bids" />
-          {isAdmin && <NavLink to="/admin" icon={<ShieldAlert className="h-5 w-5" />} label="Admin" />}
           <NavLink to="/settings" icon={<Settings className="h-5 w-5" />} label="Settings" />
         </div>
       </nav>

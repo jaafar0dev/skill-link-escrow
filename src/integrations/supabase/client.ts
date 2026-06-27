@@ -2,6 +2,88 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
+const LOCAL_AUTH_STORAGE_KEY = 'skillswap-local-auth';
+
+function createDemoSupabaseClient() {
+  const createDemoUser = (email: string, fullName?: string) => ({
+    id: `demo-${Math.random().toString(36).slice(2, 10)}`,
+    email,
+    user_metadata: { full_name: fullName ?? email.split('@')[0] },
+  });
+
+  const readStoredSession = () => {
+    if (typeof window === 'undefined') return null;
+    const raw = window.localStorage.getItem(LOCAL_AUTH_STORAGE_KEY);
+    if (!raw) return null;
+
+    try {
+      return JSON.parse(raw);
+    } catch {
+      window.localStorage.removeItem(LOCAL_AUTH_STORAGE_KEY);
+      return null;
+    }
+  };
+
+  const persistSession = (session: any) => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(LOCAL_AUTH_STORAGE_KEY, JSON.stringify(session));
+    }
+    return session;
+  };
+
+  const clearSession = () => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem(LOCAL_AUTH_STORAGE_KEY);
+    }
+  };
+
+  return {
+    auth: {
+      onAuthStateChange(callback: (event: string, session: any) => void) {
+        const initialSession = readStoredSession();
+        callback('INITIAL_SESSION', initialSession ?? null);
+        return { data: { subscription: { unsubscribe() {} } } };
+      },
+      async getSession() {
+        return { data: { session: readStoredSession() ?? null }, error: null };
+      },
+      async getUser() {
+        const session = readStoredSession();
+        return { data: { user: session?.user ?? null }, error: null };
+      },
+      async signInWithPassword({ email, password }: { email: string; password: string }) {
+        if (!email || !password) {
+          return {
+            data: { user: null, session: null },
+            error: { message: 'Email and password are required.' },
+          };
+        }
+
+        const user = createDemoUser(email);
+        const session = persistSession({ user, access_token: 'demo-token', refresh_token: 'demo-token' });
+        return { data: { user, session }, error: null };
+      },
+      async signUp({ email, password, options }: { email: string; password: string; options?: any }) {
+        if (!email || !password || password.length < 6) {
+          return {
+            data: { user: null, session: null },
+            error: { message: 'Password must be at least 6 characters.' },
+          };
+        }
+
+        const fullName = options?.data?.full_name;
+        const user = createDemoUser(email, fullName);
+        const session = persistSession({ user, access_token: 'demo-token', refresh_token: 'demo-token' });
+        return { data: { user, session }, error: null };
+      },
+      async signOut() {
+        clearSession();
+        return { error: null };
+      },
+    },
+  } as any;
+}
+
 function createSupabaseClient() {
   // Use import.meta.env for client-side (Vite build-time replacement)
   // Fall back to process.env for SSR (server-side rendering)
@@ -9,13 +91,8 @@ function createSupabaseClient() {
   const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_PUBLISHABLE_KEY;
 
   if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
-    const missing = [
-      ...(!SUPABASE_URL ? ['SUPABASE_URL'] : []),
-      ...(!SUPABASE_PUBLISHABLE_KEY ? ['SUPABASE_PUBLISHABLE_KEY'] : []),
-    ];
-    const message = `Missing Supabase environment variable(s): ${missing.join(', ')}. Connect Supabase in Lovable Cloud.`;
-    console.error(`[Supabase] ${message}`);
-    throw new Error(message);
+    console.warn('[Supabase] Missing env vars; running in local demo mode.');
+    return createDemoSupabaseClient();
   }
 
   return createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {

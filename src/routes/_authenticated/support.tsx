@@ -94,12 +94,6 @@ function SupportQueuePage() {
             Review support reports and reply directly to the job conversation.
           </p>
         </div>
-        <Link
-          to="/admin"
-          className="rounded-md border border-input bg-background px-4 py-2 text-sm text-foreground transition hover:bg-accent hover:text-accent-foreground"
-        >
-          Back to admin
-        </Link>
       </div>
 
       {!reports?.length ? (

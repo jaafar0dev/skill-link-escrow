@@ -1,262 +1,132 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "@/lib/hooks/useAuth";
-import { useRoles } from "@/lib/hooks/useRoles";
+import { createFileRoute, redirect } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
 import { formatNaira } from "@/lib/format";
-import { StatusPill } from "./dashboard";
-import { ShieldAlert } from "lucide-react";
+import { Briefcase, MessageSquareWarning, ShieldAlert, Users } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin")({
+  beforeLoad: async () => {
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser();
+
+    if (error || !user) {
+      throw redirect({ to: "/auth" });
+    }
+
+    const { data: roles, error: rolesError } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id);
+
+    const isAdmin = !rolesError && (roles ?? []).some((role: any) => role.role === "admin");
+
+    if (!isAdmin) {
+      throw redirect({ to: "/dashboard" });
+    }
+  },
   component: AdminPage,
 });
 
 function AdminPage() {
-  const { user } = useAuth();
-  const { data: roles, isLoading } = useRoles(user?.id);
-  const qc = useQueryClient();
-  const isAdmin = roles?.includes("admin");
-
-  const { data: escrows } = useQuery({
-    queryKey: ["admin-escrows"],
-    enabled: isAdmin,
+  const { data: overview, isLoading } = useQuery({
+    queryKey: ["admin-overview"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("escrow_transactions")
-        .select("*, jobs(id, title, status, poster_id, assigned_provider_id)")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
+      const [{ data: jobsData, error: jobsError }, { data: profilesData, error: profilesError }, { data: reportsData, error: reportsError }] = await Promise.all([
+        supabase.from("jobs").select("id, title, status, budget_naira, final_price_naira, created_at").order("created_at", { ascending: false }).limit(8),
+        supabase.from("profiles").select("id"),
+        supabase.from("messages").select("id").ilike("body", "REPORT_TO_ADMIN:%"),
+      ]);
 
-      const escrows = data ?? [];
-      const jobIds = Array.from(new Set(escrows.map((e: any) => e.job_id)));
-      if (!jobIds.length) return escrows;
-
-      const { data: messages, error: msgErr } = await supabase
-        .from("messages")
-        .select("job_id, body, attachment_name, created_at, sender_id")
-        .in("job_id", jobIds)
-        .order("created_at", { ascending: false });
-      if (msgErr) throw msgErr;
-
-      const latestMessageByJob = new Map<string, any>();
-      const countByJob = new Map<string, number>();
-      const latestSupportByJob = new Map<string, any>();
-      for (const message of messages ?? []) {
-        const count = countByJob.get(message.job_id) ?? 0;
-        countByJob.set(message.job_id, count + 1);
-        if (!latestMessageByJob.has(message.job_id)) {
-          latestMessageByJob.set(message.job_id, message);
-        }
-        if (
-          message.body.startsWith("REPORT_TO_ADMIN:") &&
-          !latestSupportByJob.has(message.job_id)
-        ) {
-          latestSupportByJob.set(message.job_id, message);
-        }
+      if (jobsError || profilesError || reportsError) {
+        throw jobsError ?? profilesError ?? reportsError;
       }
 
-      return escrows.map((e: any) => ({
-        ...e,
-        latest_message: latestMessageByJob.get(e.job_id) ?? null,
-        message_count: countByJob.get(e.job_id) ?? 0,
-        latest_support_message: latestSupportByJob.get(e.job_id) ?? null,
-      }));
+      const totalJobs = jobsData?.length ?? 0;
+      const openJobs = jobsData?.filter((job: any) => job.status === "open").length ?? 0;
+      const totalMembers = profilesData?.length ?? 0;
+      const supportReports = reportsData?.length ?? 0;
+
+      return {
+        totalJobs,
+        openJobs,
+        totalMembers,
+        supportReports,
+        recentJobs: jobsData ?? [],
+      };
     },
   });
 
-  const { data: users } = useQuery({
-    queryKey: ["admin-users"],
-    enabled: isAdmin,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  if (isLoading) return <p className="text-sm text-muted-foreground">Loading…</p>;
-  if (!isAdmin) {
-    return (
-      <Card>
-        <CardContent className="py-10 text-center text-sm text-muted-foreground">
-          <ShieldAlert className="mx-auto mb-2 h-6 w-6" />
-          Admin access only.
-        </CardContent>
-      </Card>
-    );
+  if (isLoading) {
+    return <p className="text-sm text-muted-foreground">Loading admin workspace…</p>;
   }
-
-  const release = async (escrowId: string, jobId: string) => {
-    const { data: esc } = await supabase
-      .from("escrow_transactions")
-      .select("amount_naira")
-      .eq("id", escrowId)
-      .maybeSingle();
-    const { data: jb } = await supabase
-      .from("jobs")
-      .select("assigned_provider_id, title")
-      .eq("id", jobId)
-      .maybeSingle();
-    const { error: eErr } = await supabase
-      .from("escrow_transactions")
-      .update({ status: "released", released_at: new Date().toISOString(), released_by: user!.id })
-      .eq("id", escrowId);
-    if (eErr) return toast.error(eErr.message);
-    const { error: jErr } = await supabase
-      .from("jobs")
-      .update({ status: "completed" })
-      .eq("id", jobId);
-    if (jErr) return toast.error(jErr.message);
-    if (jb?.assigned_provider_id && esc?.amount_naira) {
-      await supabase.from("wallet_transactions").insert({
-        user_id: jb.assigned_provider_id,
-        amount_naira: esc.amount_naira,
-        kind: "earning",
-        note: `Earnings from "${jb.title}"`,
-      });
-    }
-    toast.success("Escrow released to provider's wallet");
-    qc.invalidateQueries({ queryKey: ["admin-escrows"] });
-  };
-
-  const refund = async (escrowId: string, jobId: string) => {
-    const { data: esc } = await supabase
-      .from("escrow_transactions")
-      .select("amount_naira")
-      .eq("id", escrowId)
-      .maybeSingle();
-    const { data: jb } = await supabase
-      .from("jobs")
-      .select("poster_id, title")
-      .eq("id", jobId)
-      .maybeSingle();
-    await supabase
-      .from("escrow_transactions")
-      .update({ status: "refunded", released_at: new Date().toISOString(), released_by: user!.id })
-      .eq("id", escrowId);
-    await supabase.from("jobs").update({ status: "cancelled" }).eq("id", jobId);
-    if (jb?.poster_id && esc?.amount_naira) {
-      await supabase.from("wallet_transactions").insert({
-        user_id: jb.poster_id,
-        amount_naira: esc.amount_naira,
-        kind: "refund",
-        note: `Refund from "${jb.title}"`,
-      });
-    }
-    toast.success("Refunded to poster's wallet");
-    qc.invalidateQueries({ queryKey: ["admin-escrows"] });
-  };
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">Admin</h1>
-          <p className="text-sm text-muted-foreground">
-            Manage escrow, refunds, and support requests.
-          </p>
+      <div className="rounded-3xl border bg-card p-6 shadow-sm">
+        <div className="flex items-start gap-3">
+          <div className="rounded-2xl bg-primary/10 p-3 text-primary">
+            <ShieldAlert className="h-5 w-5" />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-primary">Admin console</p>
+            <h1 className="text-2xl font-semibold">Operations overview</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Review activity, support reports, and recent jobs directly from the database.
+            </p>
+          </div>
         </div>
-        <Link
-          to="/support"
-          className="rounded-md border border-input bg-background px-4 py-2 text-sm text-foreground transition hover:bg-accent hover:text-accent-foreground"
-        >
-          Support queue
-        </Link>
       </div>
 
-      <section>
-        <h2 className="mb-2 text-sm font-semibold text-muted-foreground">Escrow transactions</h2>
-        <div className="space-y-2">
-          {escrows?.map((e: any) => (
-            <Card key={e.id}>
-              <CardHeader className="pb-2">
-                <CardTitle className="flex items-center justify-between text-base">
-                  <Link to="/jobs/$id" params={{ id: e.job_id }} className="hover:underline">
-                    {e.jobs?.title}
-                  </Link>
-                  <StatusPill status={e.jobs?.status ?? "—"} />
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <p className="text-sm">
-                  Amount: <span className="font-semibold">{formatNaira(e.amount_naira)}</span>
-                </p>
-                <p className="text-xs text-muted-foreground">Escrow: {e.status}</p>
-                <p className="text-sm">
-                  Messages: <span className="font-semibold">{e.message_count ?? 0}</span>
-                </p>
-                <p className="text-sm">
-                  Support:{" "}
-                  <span className="font-semibold">
-                    {e.latest_support_message ? "Requested" : "None"}
-                  </span>
-                </p>
-                {e.latest_support_message ? (
-                  <div className="rounded-xl bg-slate-50 p-3 text-sm text-slate-700">
-                    <p className="font-medium">Latest support request</p>
-                    <p className="mt-1 truncate">
-                      {e.latest_support_message.body.replace("REPORT_TO_ADMIN:", "").trim() ||
-                        "Support request submitted."}
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Requested at {new Date(e.latest_support_message.created_at).toLocaleString()}
-                    </p>
-                  </div>
-                ) : e.latest_message ? (
-                  <div className="rounded-xl bg-slate-50 p-3 text-sm text-slate-700">
-                    <p className="font-medium">Latest admin-visible message</p>
-                    <p className="mt-1 truncate">{e.latest_message.body || "Attachment only"}</p>
-                    {e.latest_message.attachment_name ? (
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Attachment: {e.latest_message.attachment_name}
-                      </p>
-                    ) : null}
-                  </div>
-                ) : (
-                  <p className="text-xs text-muted-foreground">
-                    No conversation yet for this escrow.
-                  </p>
-                )}
-                {e.status === "funded" && (
-                  <div className="flex gap-2">
-                    <Button size="sm" onClick={() => release(e.id, e.job_id)}>
-                      Release to provider
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => refund(e.id, e.job_id)}>
-                      Refund poster
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          ))}
-          {!escrows?.length && (
-            <p className="text-sm text-muted-foreground">No escrow transactions yet.</p>
-          )}
-        </div>
-      </section>
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <StatCard label="Total jobs" value={overview?.totalJobs ?? 0} icon={<Briefcase className="h-5 w-5" />} />
+        <StatCard label="Open jobs" value={overview?.openJobs ?? 0} icon={<Briefcase className="h-5 w-5" />} />
+        <StatCard label="Members" value={overview?.totalMembers ?? 0} icon={<Users className="h-5 w-5" />} />
+        <StatCard label="Support reports" value={overview?.supportReports ?? 0} icon={<MessageSquareWarning className="h-5 w-5" />} />
+      </div>
 
-      <section>
-        <h2 className="mb-2 text-sm font-semibold text-muted-foreground">
-          Users ({users?.length ?? 0})
-        </h2>
-        <Card>
-          <CardContent className="divide-y p-0">
-            {users?.map((u) => (
-              <div key={u.id} className="flex items-center justify-between p-3 text-sm">
-                <span>{u.full_name || "—"}</span>
-                <span className="text-xs text-muted-foreground">{u.id.slice(0, 8)}…</span>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      </section>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Recent jobs</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {!overview?.recentJobs?.length ? (
+            <p className="text-sm text-muted-foreground">No jobs have been created yet.</p>
+          ) : (
+            <div className="space-y-2">
+              {overview.recentJobs.map((job: any) => (
+                <div key={job.id} className="flex items-center justify-between rounded-xl border p-3">
+                  <div>
+                    <p className="font-medium">{job.title}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {job.status ? job.status.replace(/_/g, " ") : "Unknown"}
+                    </p>
+                  </div>
+                  <p className="text-sm font-semibold text-foreground">
+                    {formatNaira(job.final_price_naira ?? job.budget_naira)}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
+  );
+}
+
+function StatCard({ label, value, icon }: { label: string; value: number; icon: React.ReactNode }) {
+  return (
+    <Card>
+      <CardContent className="flex items-center justify-between gap-3 py-5">
+        <div>
+          <p className="text-sm text-muted-foreground">{label}</p>
+          <p className="text-2xl font-semibold">{value}</p>
+        </div>
+        <div className="rounded-2xl bg-muted p-3 text-foreground">{icon}</div>
+      </CardContent>
+    </Card>
   );
 }

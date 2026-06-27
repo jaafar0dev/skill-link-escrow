@@ -144,6 +144,8 @@
     -webkit-text-size-adjust: 100%;
     overscroll-behavior: none;
     overscroll-behavior-y: none;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
   }
 
   html {
@@ -157,7 +159,21 @@
     padding-bottom: env(safe-area-inset-bottom);
     min-height: 100svh;
     overflow-x: hidden;
+    overflow-y: auto;
     touch-action: pan-y;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  * {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  *::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
   }
 
   /* Top safe area already handled by body padding; no extra offset needed */
