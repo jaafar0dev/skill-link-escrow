@@ -67,30 +67,44 @@ function AuthPage() {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const { data, error } = await authSignUp({
-      email,
-      password,
-      fullName: name,
-      role,
-    });
-    setLoading(false);
-    if (error) return toast.error(error.message);
-    if (data?.session) persistLocalAuthSession(data.session);
-    toast.success("Account created!");
-    navigate({ to: "/dashboard" });
+    try {
+      const { data, error } = await authSignUp({
+        data: {
+          email,
+          password,
+          fullName: name,
+          role,
+        },
+      });
+      if (error) return toast.error(error.message);
+      if (data?.session) persistLocalAuthSession(data.session);
+      toast.success("Account created!");
+      navigate({ to: "/dashboard" });
+    } catch (error: any) {
+      toast.error(error?.message || "Unable to create your account right now.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const { data, error } = await authSignIn({
-      email: lEmail,
-      password: lPassword,
-    });
-    setLoading(false);
-    if (error) return toast.error(error.message);
-    if (data?.session) persistLocalAuthSession(data.session);
-    navigate({ to: "/dashboard" });
+    try {
+      const { data, error } = await authSignIn({
+        data: {
+          email: lEmail,
+          password: lPassword,
+        },
+      });
+      if (error) return toast.error(error.message);
+      if (data?.session) persistLocalAuthSession(data.session);
+      navigate({ to: "/dashboard" });
+    } catch (error: any) {
+      toast.error(error?.message || "Unable to sign in right now.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (showOnboarding) return <OnboardingCarousel onDone={finishOnboarding} />;

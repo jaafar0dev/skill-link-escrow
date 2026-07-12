@@ -51,13 +51,18 @@ function BidsPage() {
   });
 
   useEffect(() => {
-    const ch = supabase
-      .channel("bids-live")
-      .on("postgres_changes", { event: "*", schema: "public", table: "bids" }, () => {
+    try {
+      const ch = supabase.channel("bids-live");
+      const channelWithListener = ch.on("postgres_changes", { event: "*", schema: "public", table: "bids" }, () => {
         qc.invalidateQueries({ queryKey: ["my-bids"] });
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(ch); };
+      });
+      channelWithListener.subscribe?.();
+      return () => {
+        supabase.removeChannel(ch);
+      };
+    } catch {
+      return undefined;
+    }
   }, [qc]);
 
   return (

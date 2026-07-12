@@ -37,6 +37,19 @@ function getDbConfig(): DbConfig {
 let poolInstance: Pool | null | undefined;
 let poolError: Error | null = null;
 
+async function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(message)), ms);
+  });
+
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+}
+
 async function getPool(): Promise<Pool | null> {
   if (poolInstance !== undefined) return poolInstance;
   if (poolError) return null;
@@ -45,24 +58,38 @@ async function getPool(): Promise<Pool | null> {
     return null;
   }
 
+  let pool: Pool | null = null;
+
   try {
     const { createPool } = await import('mysql2/promise');
     const config = getDbConfig();
-    const pool = createPool({
+    pool = createPool({
       host: config.host,
       port: config.port,
       user: config.user,
       password: config.password,
+      database: config.database,
       waitForConnections: true,
       connectionLimit: 10,
       queueLimit: 0,
+      connectTimeout: 2000,
+      acquireTimeout: 2000,
+      timeout: 2000,
     });
-    await pool.query<RowDataPacket[]>('SELECT 1');
-    await pool.query(`CREATE DATABASE IF NOT EXISTS \`${config.database}\``);
-    await pool.query(`USE \`${config.database}\``);
+
+    await withTimeout(pool.query<RowDataPacket[]>('SELECT 1'), 3000, 'MySQL connection timed out');
+    await withTimeout(pool.query(`CREATE DATABASE IF NOT EXISTS \`${config.database}\``), 3000, 'MySQL setup timed out');
+    await withTimeout(pool.query(`USE \`${config.database}\``), 3000, 'MySQL database selection timed out');
     poolInstance = pool;
     return pool;
   } catch (error) {
+    if (pool) {
+      try {
+        await pool.end();
+      } catch {
+        // ignore cleanup errors
+      }
+    }
     poolError = error as Error;
     console.warn('[MySQL] Falling back to local demo mode:', (error as Error).message);
     return null;
