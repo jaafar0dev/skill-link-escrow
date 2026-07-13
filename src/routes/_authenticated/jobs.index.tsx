@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Wallet, Briefcase, Search } from "lucide-react";
-import { formatNaira } from "@/lib/format";
+import { formatUSD } from "@/lib/format";
 import { StatusPill } from "./dashboard";
 
 export const Route = createFileRoute("/_authenticated/jobs/")({
@@ -60,7 +60,7 @@ function JobsList() {
                   <p className="line-clamp-2 text-sm text-muted-foreground">{j.description}</p>
                   <div className="mt-2 flex items-center gap-1 text-sm font-medium">
                     <Wallet className="h-3.5 w-3.5" />
-                    {formatNaira(j.final_price_naira ?? j.budget_naira)}
+                    {formatUSD(j.final_price_naira ?? j.budget_naira)}
                   </div>
                 </CardContent>
               </Card>

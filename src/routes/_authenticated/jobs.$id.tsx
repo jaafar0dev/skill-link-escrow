@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { formatNaira } from "@/lib/format";
+import { formatUSD } from "@/lib/format";
 import { StatusPill } from "./dashboard";
 import { Wallet, CheckCircle2, ShieldCheck, Loader2, Inbox, Gavel, Paperclip } from "lucide-react";
 
@@ -339,16 +339,24 @@ function JobDetail() {
     let attachment_name: string | null = null;
 
     if (attachmentFile) {
-      const path = `job-${id}/${user.id}-${Date.now()}-${attachmentFile.name}`;
+      const safeFileName = attachmentFile.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const path = `job-${id}/${user.id}-${Date.now()}-${safeFileName}`;
       const { error: uploadErr } = await supabase.storage
         .from("job-attachments")
         .upload(path, attachmentFile, { upsert: false });
       if (uploadErr) {
-        toast.error("File upload failed. Try again.");
+        toast.error(`File upload failed: ${uploadErr.message ?? "Try again."}`);
         setChatLoading(false);
         return;
       }
-      const { data: publicUrlData } = supabase.storage.from("job-attachments").getPublicUrl(path);
+      const { data: publicUrlData, error: publicUrlErr } = await supabase.storage
+        .from("job-attachments")
+        .getPublicUrl(path);
+      if (publicUrlErr) {
+        toast.error(`Could not create attachment URL: ${publicUrlErr.message}`);
+        setChatLoading(false);
+        return;
+      }
       attachment_url = publicUrlData?.publicUrl ?? null;
       attachment_name = attachmentFile.name;
     }
@@ -384,17 +392,17 @@ function JobDetail() {
           <p className="whitespace-pre-wrap text-sm">{job.description}</p>
           <div className="flex items-center gap-2 text-sm font-medium">
             <Wallet className="h-4 w-4" />
-            Budget: {formatNaira(job.budget_naira)}
+            Budget: {formatUSD(job.budget_naira)}
             {job.final_price_naira ? (
               <span className="text-muted-foreground">
-                · Agreed: {formatNaira(job.final_price_naira)}
+                · Agreed: {formatUSD(job.final_price_naira)}
               </span>
             ) : null}
           </div>
           {job.status === "in_escrow" && (
             <div className="rounded-md bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-400">
               <ShieldCheck className="mr-1 inline h-4 w-4" />
-              {formatNaira(job.final_price_naira)} held in escrow.
+              {formatUSD(job.final_price_naira)} held in escrow.
             </div>
           )}
           {job.status === "completed" && (
@@ -565,7 +573,7 @@ function JobDetail() {
               <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-primary">
                 <CheckCircle2 className="h-3.5 w-3.5" /> Your bid
               </p>
-              <p className="mt-1 text-lg font-bold">{formatNaira(myBid.amount_naira)}</p>
+              <p className="mt-1 text-lg font-bold">{formatUSD(myBid.amount_naira)}</p>
               {myBid.message && (
                 <p className="mt-1 text-xs text-muted-foreground">"{myBid.message}"</p>
               )}
@@ -597,7 +605,7 @@ function JobDetail() {
                   {myBid
                     ? myBid.status === "rejected"
                       ? "Your last bid was rejected — try a different price"
-                      : `Current bid: ${formatNaira(myBid.amount_naira)} · ${myBid.status}`
+                      : `Current bid: ${formatUSD(myBid.amount_naira)} · ${myBid.status}`
                     : "Haggle — you can edit your bid anytime"}
                 </p>
               </div>
@@ -609,7 +617,7 @@ function JobDetail() {
                 <Label htmlFor="a">Your price</Label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-muted-foreground">
-                    ₦
+                    $
                   </span>
                   <Input
                     id="a"
@@ -623,7 +631,7 @@ function JobDetail() {
                   />
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Budget: {formatNaira(job.budget_naira)}
+                  Budget: {formatUSD(job.budget_naira)}
                 </p>
               </div>
               <div className="space-y-2">
@@ -666,7 +674,7 @@ function JobDetail() {
                       </p>
                     )}
                     <p className="mt-1.5 flex items-center gap-1 text-base font-bold text-primary">
-                      <Wallet className="h-3.5 w-3.5" /> {formatNaira(b.amount_naira)}
+                      <Wallet className="h-3.5 w-3.5" /> {formatUSD(b.amount_naira)}
                     </p>
                   </div>
                   <div className="flex flex-col items-end gap-2">

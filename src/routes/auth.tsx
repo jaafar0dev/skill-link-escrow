@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { authSignIn, authSignUp } from "@/lib/api/auth.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +13,7 @@ import { OnboardingCarousel } from "@/components/OnboardingCarousel";
 import authBg from "@/assets/auth-bg.jpg";
 
 export const Route = createFileRoute("/auth")({
+  ssr: false,
   head: () => ({ meta: [{ title: "Sign in — SkillSwap" }] }),
   component: AuthPage,
 });
@@ -41,6 +42,12 @@ function AuthPage() {
   const [lEmail, setLEmail] = useState("");
   const [lPassword, setLPassword] = useState("");
 
+  const persistLocalAuthSession = (session: any) => {
+    if (typeof window !== "undefined" && session) {
+      window.localStorage.setItem("skillswap-local-auth", JSON.stringify(session));
+    }
+  };
+
   useEffect(() => {
     if (typeof window === "undefined") return;
     // Use a separate key when running as an installed PWA so the slides
@@ -60,16 +67,15 @@ function AuthPage() {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await authSignUp({
       email,
       password,
-      options: {
-        emailRedirectTo: window.location.origin,
-        data: { full_name: name, role },
-      },
+      fullName: name,
+      role,
     });
     setLoading(false);
     if (error) return toast.error(error.message);
+    if (data?.session) persistLocalAuthSession(data.session);
     toast.success("Account created!");
     navigate({ to: "/dashboard" });
   };
@@ -77,12 +83,13 @@ function AuthPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await authSignIn({
       email: lEmail,
       password: lPassword,
     });
     setLoading(false);
     if (error) return toast.error(error.message);
+    if (data?.session) persistLocalAuthSession(data.session);
     navigate({ to: "/dashboard" });
   };
 
@@ -113,7 +120,7 @@ function AuthPage() {
               Hire help.<br />Earn fairly.<br />Stay protected.
             </h1>
             <p className="mt-4 max-w-sm text-white/85">
-              The student marketplace where every Naira is held safely in escrow until the job is done right.
+              The student marketplace where every dollar is held safely in escrow until the job is done right.
             </p>
             <div className="mt-8 flex items-center gap-6 text-sm text-white/80">
               <div>
@@ -122,8 +129,8 @@ function AuthPage() {
               </div>
               <div className="h-10 w-px bg-white/30" />
               <div>
-                <p className="text-2xl font-bold text-white">₦</p>
-                <p>Naira native</p>
+                <p className="text-2xl font-bold text-white">$</p>
+                <p>USD native</p>
               </div>
             </div>
           </div>

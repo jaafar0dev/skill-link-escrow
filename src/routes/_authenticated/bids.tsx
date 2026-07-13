@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/hooks/useAuth";
 import { useRoles } from "@/lib/hooks/useRoles";
 import { Card, CardContent } from "@/components/ui/card";
 import { Inbox, Gavel, Wallet, Sparkles } from "lucide-react";
-import { formatNaira, formatStatus } from "@/lib/format";
+import { formatUSD, formatStatus } from "@/lib/format";
 import { StatusPill } from "./dashboard";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -102,7 +102,7 @@ function BidsPage() {
                     )}
                     <div className="mt-1 flex items-center gap-1 text-sm font-semibold">
                       <Wallet className="h-3.5 w-3.5" />
-                      {formatNaira(b.amount_naira)}
+                      {formatUSD(b.amount_naira)}
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-1">

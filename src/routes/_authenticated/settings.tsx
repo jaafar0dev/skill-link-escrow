@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { LogOut, Mail, Wallet, ArrowDownCircle, ArrowUpCircle } from "lucide-react";
 import { toast } from "sonner";
-import { formatNaira } from "@/lib/format";
+import { formatUSD } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   component: SettingsPage,
@@ -94,7 +94,7 @@ function SettingsPage() {
             <p className="flex items-center gap-1 text-xs uppercase tracking-wider opacity-90">
               <Wallet className="h-3.5 w-3.5" /> Wallet balance
             </p>
-            <p className="mt-1 text-4xl font-bold">{formatNaira(balance)}</p>
+            <p className="mt-1 text-4xl font-bold">{formatUSD(balance)}</p>
             <p className="mt-1 text-xs opacity-90">
               Your balance grows only from completed work and refunds.
             </p>
@@ -173,7 +173,7 @@ function SettingsPage() {
                       className={`text-sm font-semibold ${positive ? "text-emerald-600" : "text-rose-600"}`}
                     >
                       {positive ? "+" : ""}
-                      {formatNaira(t.amount_naira)}
+                      {formatUSD(t.amount_naira)}
                     </p>
                   </div>
                 );

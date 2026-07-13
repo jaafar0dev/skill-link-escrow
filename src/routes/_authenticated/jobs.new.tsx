@@ -56,7 +56,7 @@ function NewJob() {
             <Textarea id="d" required maxLength={2000} rows={5} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What do you need done?" />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="b">Budget (₦)</Label>
+            <Label htmlFor="b">Budget (USD)</Label>
             <Input id="b" required type="number" min={0} value={budget} onChange={(e) => setBudget(e.target.value)} placeholder="5000" />
           </div>
           <Button type="submit" className="w-full" disabled={loading}>

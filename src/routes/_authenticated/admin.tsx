@@ -105,7 +105,7 @@ function AdminPage() {
                     </p>
                   </div>
                   <p className="text-sm font-semibold text-foreground">
-                    {formatNaira(job.final_price_naira ?? job.budget_naira)}
+                    {formatUSD(job.final_price_naira ?? job.budget_naira)}
                   </p>
                 </div>
               ))}

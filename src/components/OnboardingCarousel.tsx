@@ -10,7 +10,7 @@ const slides = [
     image: slide1,
     kicker: "For students",
     title: "Post what you need",
-    desc: "Coding, design, tutoring, errands — describe the task and set your Naira price.",
+    desc: "Coding, design, tutoring, errands — describe the task and set your USD price.",
   },
   {
     image: slide2,
