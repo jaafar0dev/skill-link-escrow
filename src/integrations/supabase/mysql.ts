@@ -317,6 +317,7 @@ class MysqlQueryBuilder {
     ].filter(Boolean).join(' ');
 
     const [rows] = await pool.query<RowDataPacket[]>(sql, params);
+
     return { data: rows as any[], error: null };
   }
 

@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { useRoles } from "@/lib/hooks/useRoles";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,11 +17,14 @@ export const Route = createFileRoute("/_authenticated/jobs/new")({
 
 function NewJob() {
   const { user } = useAuth();
+  const { data: roles, isLoading } = useRoles(user?.id);
   const navigate = useNavigate();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [budget, setBudget] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const isPoster = roles?.includes("poster");
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,6 +45,19 @@ function NewJob() {
     toast.success("Job posted!");
     navigate({ to: "/jobs/$id", params: { id: data.id } });
   };
+
+  if (!isPoster) {
+    return (
+      <Card>
+        <CardHeader><CardTitle>Post a new job</CardTitle></CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            Only students can post jobs. If you would like to switch to a student account, please contact support.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>

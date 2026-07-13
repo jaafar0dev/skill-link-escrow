@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { getUserRoles } from "@/lib/api/roles.functions";
 
 export type AppRole = "poster" | "provider" | "admin";
 
@@ -8,12 +8,9 @@ export function useRoles(userId: string | undefined) {
     queryKey: ["roles", userId],
     enabled: !!userId,
     queryFn: async (): Promise<AppRole[]> => {
-      const { data, error } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", userId!);
-      if (error) throw error;
-      return (data ?? []).map((r) => r.role as AppRole);
+      const { roles, error } = await getUserRoles({ data: { userId: userId! } });
+      if (error) throw new Error(error);
+      return (roles ?? []) as AppRole[];
     },
   });
 }

@@ -130,9 +130,9 @@ function SettingsPage() {
         </Card>
       ) : (
         <Card>
-          <CardContent>
+          <CardContent className="pt-6">
             <p className="text-sm text-muted-foreground">
-              Deposits are only available to students.
+              Deposits are only available to students posting jobs. Providers earn funds from completing work.
             </p>
           </CardContent>
         </Card>
