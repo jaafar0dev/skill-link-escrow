@@ -196,6 +196,17 @@ async function ensureSchema() {
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
   `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS job_reports (
+      id VARCHAR(36) PRIMARY KEY,
+      job_id VARCHAR(36) NOT NULL,
+      reporter_id VARCHAR(36) NOT NULL,
+      report_type VARCHAR(50) NOT NULL DEFAULT 'quick_report',
+      body TEXT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  `);
 }
 
 function hashPassword(password: string) {
@@ -490,10 +501,11 @@ export class MysqlSupabaseCompatibleClient {
   };
 
   channel(_name: string) {
-    return {
-      on: () => this,
-      subscribe: () => this,
+    const channel = {
+      on: () => channel,
+      subscribe: () => channel,
     };
+    return channel;
   }
 
   removeChannel(_channel: unknown) {

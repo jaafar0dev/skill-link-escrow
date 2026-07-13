@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { getJobDetail } from "@/lib/api/jobs.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useRoles } from "@/lib/hooks/useRoles";
@@ -35,70 +36,20 @@ function JobDetail() {
   const { data: roles } = useRoles(user?.id);
   const qc = useQueryClient();
 
-  const { data: job, isLoading } = useQuery({
-    queryKey: ["job", id],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("jobs").select("*").eq("id", id).maybeSingle();
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  const { data: bids } = useQuery({
-    queryKey: ["bids", id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("bids")
-        .select("*")
-        .eq("job_id", id)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      const pids = Array.from(new Set((data ?? []).map((b) => b.provider_id)));
-      const { data: profs } = pids.length
-        ? await supabase.from("profiles").select("id, full_name").in("id", pids)
-        : { data: [] as { id: string; full_name: string }[] };
-      const nameById = new Map((profs ?? []).map((p) => [p.id, p.full_name]));
-      return (data ?? []).map((b) => ({
-        ...b,
-        profiles: { full_name: nameById.get(b.provider_id) ?? "Provider" },
-      }));
-    },
-  });
-
-  const { data: posterProfile } = useQuery({
-    queryKey: ["profile", job?.poster_id],
-    enabled: !!job,
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("profiles")
-        .select("full_name")
-        .eq("id", job!.poster_id)
-        .maybeSingle();
-      return data;
-    },
-  });
-
-  const { data: messages } = useQuery({
-    queryKey: ["messages", id],
+  const { data, isLoading } = useQuery({
+    queryKey: ["job-detail", id],
     enabled: !!id,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("messages")
-        .select("*")
-        .eq("job_id", id)
-        .order("created_at", { ascending: true });
-      if (error) throw error;
-      const senderIds = Array.from(new Set((data ?? []).map((m) => m.sender_id)));
-      const { data: senderProfiles } = senderIds.length
-        ? await supabase.from("profiles").select("id, full_name").in("id", senderIds)
-        : { data: [] as { id: string; full_name: string }[] };
-      const nameById = new Map((senderProfiles ?? []).map((p) => [p.id, p.full_name]));
-      return (data ?? []).map((m) => ({
-        ...m,
-        sender_name: nameById.get(m.sender_id) ?? "Member",
-      })) as Message[];
+      const { job, bids, messages, posterProfile, error } = await getJobDetail({ data: { id } });
+      if (error) throw new Error(error);
+      return { job, bids: bids ?? [], messages: messages ?? [], posterProfile };
     },
   });
+
+  const job = data?.job;
+  const bids = data?.bids ?? [];
+  const posterProfile = data?.posterProfile;
+  const messages = data?.messages ?? [];
 
   const [amount, setAmount] = useState("");
   const [message, setMessage] = useState("");
@@ -275,16 +226,15 @@ function JobDetail() {
   const reportToAdmin = async () => {
     if (!user) return;
     setReportLoading(true);
-    const { error } = await supabase.from("messages").insert({
+    const { error } = await supabase.from("job_reports").insert({
       job_id: id,
-      sender_id: user.id,
-      body: "REPORT_TO_ADMIN: This job has been reported to admin. Please review the conversation and help resolve the issue.",
-      attachment_url: null,
-      attachment_name: null,
+      reporter_id: user.id,
+      report_type: "quick_report",
+      body: `Quick report for job ${job.title} (${id}) by ${user.email || user.id}. Status: ${job.status}.`,
     });
     setReportLoading(false);
     if (error) return toast.error(error.message);
-    toast.success("Admin has been notified.");
+    toast.success("Admin has been notified via quick report.");
     refresh();
   };
 

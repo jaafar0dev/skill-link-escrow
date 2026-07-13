@@ -1,8 +1,8 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useRoles } from "@/lib/hooks/useRoles";
+import { createJob } from "@/lib/api/jobs.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,20 +30,32 @@ function NewJob() {
     e.preventDefault();
     if (!user) return;
     setLoading(true);
-    const { data, error } = await supabase
-      .from("jobs")
-      .insert({
-        poster_id: user.id,
-        title,
-        description,
-        budget_naira: Math.max(0, parseInt(budget || "0", 10)),
-      })
-      .select()
-      .single();
-    setLoading(false);
-    if (error) return toast.error(error.message);
-    toast.success("Job posted!");
-    navigate({ to: "/jobs/$id", params: { id: data.id } });
+    try {
+      const { job, error } = await createJob({
+        data: {
+          posterId: user.id,
+          title,
+          description,
+          budgetNaira: Math.max(0, parseInt(budget || "0", 10)),
+        },
+      });
+      if (error) {
+        toast.error(error);
+        setLoading(false);
+        return;
+      }
+      const createdJob = job && typeof job === "object" ? job : null;
+      if (!createdJob || !createdJob.id) {
+        toast.error("Failed to create job");
+        setLoading(false);
+        return;
+      }
+      toast.success("Job posted!");
+      navigate({ to: "/jobs/$id", params: { id: createdJob.id } });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to post job");
+      setLoading(false);
+    }
   };
 
   if (!isPoster) {

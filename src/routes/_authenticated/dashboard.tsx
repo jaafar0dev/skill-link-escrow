@@ -172,6 +172,10 @@ function StatCard({ label, value, Icon, tone }: { label: string; value: number; 
 }
 
 export function StatusPill({ status }: { status: string }) {
+  if (status === "draft") {
+    return null;
+  }
+
   const map: Record<string, string> = {
     open: "bg-blue-500/15 text-blue-600",
     in_escrow: "bg-amber-500/15 text-amber-600",

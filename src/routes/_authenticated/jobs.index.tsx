@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { getJobs } from "@/lib/api/jobs.functions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Wallet, Briefcase, Search } from "lucide-react";
 import { formatUSD } from "@/lib/format";
@@ -14,12 +14,9 @@ function JobsList() {
   const { data } = useQuery({
     queryKey: ["jobs-all"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("jobs")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data;
+      const { jobs, error } = await getJobs({ data: {} });
+      if (error) throw new Error(error);
+      return jobs;
     },
   });
 
