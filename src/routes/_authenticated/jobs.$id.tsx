@@ -53,6 +53,7 @@ function JobDetail() {
 
   const [amount, setAmount] = useState("");
   const [message, setMessage] = useState("");
+  const [reportMessage, setReportMessage] = useState("");
   const [bidLoading, setBidLoading] = useState(false);
   const [submitWorkLoading, setSubmitWorkLoading] = useState(false);
   const [reportLoading, setReportLoading] = useState(false);
@@ -226,14 +227,20 @@ function JobDetail() {
   const reportToAdmin = async () => {
     if (!user) return;
     setReportLoading(true);
+    const details = reportMessage.trim();
+    const reportBody = details
+      ? `Quick report for job ${job.title} (${id}) by ${user.email || user.id}. Status: ${job.status}. Details: ${details}`
+      : `Quick report for job ${job.title} (${id}) by ${user.email || user.id}. Status: ${job.status}.`;
+
     const { error } = await supabase.from("job_reports").insert({
       job_id: id,
       reporter_id: user.id,
       report_type: "quick_report",
-      body: `Quick report for job ${job.title} (${id}) by ${user.email || user.id}. Status: ${job.status}.`,
+      body: reportBody,
     });
     setReportLoading(false);
     if (error) return toast.error(error.message);
+    setReportMessage("");
     toast.success("Admin has been notified via quick report.");
     refresh();
   };
@@ -407,6 +414,16 @@ function JobDetail() {
 
             {(isPoster || isAssigned) && job.status !== "completed" && (
               <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-950/10 dark:text-slate-300">
+                <div className="space-y-2">
+                  <Label htmlFor="report-message">Report details</Label>
+                  <Textarea
+                    id="report-message"
+                    value={reportMessage}
+                    onChange={(event) => setReportMessage(event.target.value)}
+                    placeholder="Describe the issue you want the admin to review."
+                    rows={4}
+                  />
+                </div>
                 <Button
                   variant="outline"
                   size="sm"

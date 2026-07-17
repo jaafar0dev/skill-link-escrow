@@ -63,13 +63,36 @@ function SettingsPage() {
     const amount = Math.max(0, parseInt(depositAmount || "0", 10));
     if (!amount) return toast.error("Enter a valid deposit amount.");
 
-    const { error } = await supabase.from("wallet_transactions").insert({
+    const { data: walletRow, error: walletLookupError } = await supabase
+      .from("wallets")
+      .select("id, balance_naira")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (walletLookupError) return toast.error(walletLookupError.message);
+
+    const nextBalance = (walletRow?.balance_naira ?? 0) + amount;
+
+    if (walletRow?.id) {
+      const { error: walletUpdateError } = await supabase
+        .from("wallets")
+        .update({ balance_naira: nextBalance })
+        .eq("id", walletRow.id);
+      if (walletUpdateError) return toast.error(walletUpdateError.message);
+    } else {
+      const { error: walletInsertError } = await supabase
+        .from("wallets")
+        .insert({ user_id: user.id, balance_naira: nextBalance });
+      if (walletInsertError) return toast.error(walletInsertError.message);
+    }
+
+    const { error: txError } = await supabase.from("wallet_transactions").insert({
       user_id: user.id,
       amount_naira: amount,
       kind: "deposit",
       note: "Student wallet deposit",
     });
-    if (error) return toast.error(error.message);
+    if (txError) return toast.error(txError.message);
 
     setDepositAmount("");
     qc.invalidateQueries({ queryKey: ["wallet", user.id] });
@@ -79,9 +102,15 @@ function SettingsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Settings</h1>
-        <p className="text-sm text-muted-foreground">Manage your account and wallet</p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold">Settings</h1>
+          <p className="text-sm text-muted-foreground">Manage your account and wallet</p>
+        </div>
+        <Button variant="outline" onClick={signOut} className="shrink-0">
+          <LogOut className="mr-2 h-4 w-4" />
+          Log out
+        </Button>
       </div>
 
       {/* Wallet balance */}
@@ -114,12 +143,12 @@ function SettingsPage() {
                 <input
                   id="deposit"
                   type="number"
-                  min="0"
-                  step="100"
+                  min="1"
+                  inputMode="numeric"
                   value={depositAmount}
                   onChange={(event) => setDepositAmount(event.target.value)}
                   className="block w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                  placeholder="0"
+                  placeholder="Any amount"
                 />
               </div>
               <Button type="submit" className="w-full">

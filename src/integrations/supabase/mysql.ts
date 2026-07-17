@@ -2,6 +2,7 @@ type Pool = any;
 type RowDataPacket = any;
 
 const LOCAL_AUTH_STORAGE_KEY = 'skillswap-local-auth';
+const LOCAL_TABLE_STORAGE_PREFIX = 'skillswap-local-table';
 
 interface DbConfig {
   host: string;
@@ -251,6 +252,62 @@ function clearSession() {
   }
 }
 
+function readLocalTableRows(table: string) {
+  if (typeof window === 'undefined') return [];
+  try {
+    const stored = window.localStorage.getItem(`${LOCAL_TABLE_STORAGE_PREFIX}:${table}`);
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeLocalTableRows(table: string, rows: any[]) {
+  if (typeof window !== 'undefined') {
+    window.localStorage.setItem(`${LOCAL_TABLE_STORAGE_PREFIX}:${table}`, JSON.stringify(rows));
+  }
+}
+
+function matchesLocalFilters(row: Record<string, unknown>, filters: QueryFilter[]) {
+  return filters.every((filter) => {
+    const value = row[filter.column];
+    switch (filter.op) {
+      case '!=':
+        return value !== filter.value;
+      case 'in':
+        return (filter.value as unknown[]).includes(value);
+      case 'like':
+        return String(value).toLowerCase().includes(String(filter.value).toLowerCase());
+      case '=':
+      default:
+        return value === filter.value;
+    }
+  });
+}
+
+function applyLocalFilters(rows: any[], filters: QueryFilter[], orderBy: QueryOrder | null = null, limitValue: number | null = null) {
+  let filtered = rows.filter((row) => matchesLocalFilters(row, filters));
+
+  if (orderBy) {
+    filtered = [...filtered].sort((a, b) => {
+      const left = a[orderBy.column];
+      const right = b[orderBy.column];
+      if (left == null && right == null) return 0;
+      if (left == null) return 1;
+      if (right == null) return -1;
+      if (left < right) return orderBy.ascending ? -1 : 1;
+      if (left > right) return orderBy.ascending ? 1 : -1;
+      return 0;
+    });
+  }
+
+  if (limitValue != null) {
+    filtered = filtered.slice(0, limitValue);
+  }
+
+  return filtered;
+}
+
 class MysqlQueryBuilder {
   private filters: QueryFilter[] = [];
   private orderBy: QueryOrder | null = null;
@@ -314,7 +371,10 @@ class MysqlQueryBuilder {
   async execute() {
     const pool = await getPool();
     if (!pool) {
-      return { data: [], error: null };
+      return {
+        data: applyLocalFilters(readLocalTableRows(this.table), this.filters, this.orderBy, this.limitValue),
+        error: null,
+      };
     }
     await ensureSchema();
 
@@ -335,7 +395,13 @@ class MysqlQueryBuilder {
   async insert(values: Record<string, unknown>) {
     const pool = await getPool();
     if (!pool) {
-      return { data: null, error: null };
+      const payload = { ...values } as Record<string, unknown>;
+      if (!payload.id) payload.id = createId();
+      if (!payload.created_at) payload.created_at = new Date().toISOString();
+      const rows = readLocalTableRows(this.table);
+      rows.push(payload);
+      writeLocalTableRows(this.table, rows);
+      return { data: payload, error: null };
     }
     await ensureSchema();
 
@@ -355,7 +421,10 @@ class MysqlQueryBuilder {
   async update(values: Record<string, unknown>) {
     const pool = await getPool();
     if (!pool) {
-      return { data: null, error: null };
+      const rows = readLocalTableRows(this.table);
+      const updatedRows = rows.map((row) => (matchesLocalFilters(row, this.filters) ? { ...row, ...values } : row));
+      writeLocalTableRows(this.table, updatedRows);
+      return { data: { updated: true }, error: null };
     }
     await ensureSchema();
 
